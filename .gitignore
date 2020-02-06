@@ -1,0 +1,14 @@
+
+.vscode
+db.sqlite3
+
+secret.py
+local_settings.py
+
+__pycache__/
+/static
+
+.env
+.venv
+env/
+venv/
