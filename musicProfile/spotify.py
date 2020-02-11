@@ -6,7 +6,7 @@ import aiohttp
 
 import numpy as np
 import pandas as pd
-from pandas.io.json import json_normalize
+from pandas import json_normalize
 
 import json
 from functools import reduce
