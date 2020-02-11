@@ -1,5 +1,6 @@
 # Spotify API Music Profile Backend
 Python version used: Python 3.7.6
+
 check requirements.txt for requirements
 
 STILL IN DEVELOPMENT | This is a backend API that connects to the Spotify API and generates a user 'music profile' consisting of their top artists and tracks
