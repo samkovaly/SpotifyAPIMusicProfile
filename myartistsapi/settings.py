@@ -1,11 +1,10 @@
 
-
 import os
-
-
+import sys
+sys.path.append("..")
 
 try:
-    from .local_settings import *
+    from local_secrets import *
 except ImportError:
     print("no local settings found")
 

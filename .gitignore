@@ -2,8 +2,7 @@
 .vscode
 db.sqlite3
 
-secret.py
-local_settings.py
+local_secrets.py
 
 __pycache__/
 /static

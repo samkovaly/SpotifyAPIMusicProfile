@@ -1,6 +1,8 @@
+import sys
+sys.path.append("..")
 
 from django.http import JsonResponse
-from .secret import spotify_app_credentials_data
+from local_secrets import spotify_app_credentials_data
 
 
 def get_spotify_app_credentials(request):
