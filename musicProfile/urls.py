@@ -1,14 +1,30 @@
 from django.contrib import admin
+
 from django.urls import path
-
 from django.conf.urls import include
-from rest_framework import routers
 
-from .spotify_credentials import get_spotify_app_credentials
 from .spotify import get_spotify_music_profile
+
+from musicProfile.views import UserDetail, UserProfileDetail, UserPostGetAll
+
 
 
 urlpatterns = [
-    path('spotify-app-credentials/', get_spotify_app_credentials),
-    path('spotify-music-profile/', get_spotify_music_profile),
+    path('users/', UserPostGetAll.as_view()),
+    path('users/<str:username>', UserDetail.as_view()),
+    path('users/<str:username>/music_profile', UserProfileDetail.as_view()),
 ]
+
+
+
+'''
+URL patterns
+    auth/
+        get user token
+    api/users/<str:username>/
+        get user by username, returns user music_profile as part of user
+            must pass auth token
+    api/users/<str:username>/set_music_profile/
+        set users music profile
+            must pass auth token
+'''
