@@ -1,70 +1,28 @@
-from django.shortcuts import render
-
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.decorators import api_view
 
-#from musicProfile.models import Account
+from rest_framework import status
+from django.http import JsonResponse
+
+from django.contrib.auth.models import User
 from musicProfile.models import UserProfile
-#from musicProfile.serializers import AccountSerializer
 from musicProfile.serializers import UserProfileSerializer, UserSerializer
 
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
-from rest_framework import viewsets, status
 
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
-
-from django.http import HttpResponse
-
-from django.http import Http404
-from rest_framework.views import APIView
-
-from django.core.exceptions import ObjectDoesNotExist
-
 from rest_framework.permissions import BasePermission
 
-from django.contrib.auth.models import User
+from rest_framework.views import APIView
 
-from rest_framework.decorators import api_view
+from rest_framework.exceptions import NotAuthenticated, AuthenticationFailed
 
-from django.views.decorators.csrf import csrf_exempt
+from spotify import get_spotify_music_profile
 
+import sys
+sys.path.append("..")
+from local_secrets import spotify_app_credentials_data, concerts_events_API_credentials
 
-from rest_framework.exceptions import NotAuthenticated, NotFound, AuthenticationFailed
-
-'''
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = (AllowAny,)
-
-
-    def create(self, request, *args, **kwargs):
-        response = {'message': 'You cant create rating like that'}
-        return Response(response, status=status.HTTP_400_BAD_REQUEST)
-'''
-
-
-'''
-@api_view(['GET', ])
-def detail_profile_view(request, username):
-    try:
-        print("username", username)
-        print(User.objects.all())
-
-        user = User.objects.get(username=username)
-        print('user', user)
-        print('request', request)
-        print('request.user', request.user)
-
-        check_object_permissions(request.user, user)
-        profile = UserProfile.objects.get(user=user)
-        serializer = UserProfileSerializer(profile)
-        return Response(serializer.data)
-    except ObjectDoesNotExist:
-        raise Http404
-'''
 
     # samtest:
     #   user: samtest
@@ -84,14 +42,15 @@ def get_user(request, want_username):
             user = User.objects.get(username=want_username)
             return user
         else:
-            print('user auth fail')
+            #print('user auth fail')
             raise AuthenticationFailed('Header token authentication does not match with the user you are requesting data from')
     else:
-        print('user not even authed')
+        #print('user not even authed')
         # user not not authed correctly
         raise NotAuthenticated("user has invalid authentication")
 
 
+# requried user's token, not master token
 class UserDetail(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -102,6 +61,8 @@ class UserDetail(APIView):
         return Response(user_serializer.data)
 
 
+
+# requried user's token, not master token
 class UserProfileDetail(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -112,32 +73,24 @@ class UserProfileDetail(APIView):
         profile_serializer = UserProfileSerializer(profile)
         return Response(profile_serializer.data)
 
-
     def post(self, request, username, format=None):
         user = get_user(request, username)
         profile = UserProfile.objects.get(user=user)
+
+        print('request', request)
+        new_music_profile_JSON = get_spotify_music_profile(request)
+        profile.music_profile_JSON = new_music_profile_JSON
+        profile.save()
+
         # update profile, then return
         # request.data has accesstoken / requesttoken
         profile_serializer = UserProfileSerializer(profile)
 
         return Response(profile_serializer.data)
 
-
-
-
+'''
 class HasKeyOrIsAdmin(BasePermission):
-
     def has_permission(self, request, view):
-
-        '''
-        print('has permisssoin')
-        print('request', request.user)
-        print("staff", request.user.is_staff)
-        print("authed", request.user.is_authenticated)
-        print('POST', request.POST)
-        print('keys', request.POST.keys())
-        '''
-        
         if (request.method == 'GET'):
             if request.user and request.user.is_staff:
                 return True
@@ -146,10 +99,11 @@ class HasKeyOrIsAdmin(BasePermission):
             if (request.user and request.user.is_staff) or ('app_key' in request.POST and request.POST['app_key'] == "LOOL"):
                 return True
         return False
+'''
 
-
-class UserPostGetAll(APIView):
-    permission_classes = (HasKeyOrIsAdmin,)
+# requires admin's token (coming from the app)
+class UserPostOrGetAll(APIView):
+    permission_classes = (IsAdminUser,)
     authentication_classes = (TokenAuthentication, )
 
     # register new user
@@ -173,85 +127,18 @@ class UserPostGetAll(APIView):
         return Response(usersSerializer.data, status=status.HTTP_200_OK)
 
 
-
-
-'''
-@api_view(['GET', ])
-def detail_profile_view(request, username):
-    try:
-        print("username", username)
-        print(User.objects.all())
-
-        user = User.objects.get(username=username)
-        print('user', user)
-        #self.check_object_permissions(self.request, obj)
-        profile = UserProfile.objects.get(user=user)
-        serializer = UserProfileSerializer(profile)
-        return Response(serializer.data)
-    except ObjectDoesNotExist:
-        raise Http404
-
-class HasKeyOrIsAdmin(BasePermission):
-
-    def has_permission(self, request, view):
-
-        print('has permisssoin')
-        print('request', request.user)
-        print("staff", request.user.is_staff)
-        print("authed", request.user.is_authenticated)
-        print('POST', request.POST)
-        print('keys', request.POST.keys())
-
-
-        if (request.method == 'GET'):
-            if request.user and request.user.is_staff:
-                return True
-        # need special key from app to make a new user
-        elif request.method == 'POST':
-            if (request.user and request.user.is_staff) or ('app_key' in request.POST and request.POST['app_key'] == "LOOL"):
-                return True
-        return False
-
-class UserPostGetAll(APIView):
-    permission_classes = (HasKeyOrIsAdmin,)
+# requires admin's token (coming from the app)
+class SpotifyAppCredentials(APIView):
     authentication_classes = (TokenAuthentication, )
-
-    def post(self, request, format=None):
-        serializer = AccountSerializer(data=request.data)
-        data = {}
-        if serializer.is_valid():
-            account = serializer.save()
-            data['response'] = 'successfully registered a new user'
-            data['username'] = account.username
-            token = Token.objects.get(user = account).key
-            data['token'] = token
-            return Response(data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    permission_classes = (IsAdminUser,)
 
     def get(self, request, format=None):
-        accounts = Account.objects.all()
-        serializer = AccountSerializer(accounts, many=True)
-        return Response(serializer.data)
-'''
+        return JsonResponse(spotify_app_credentials_data)
+        
 
-
-
-
-''''
-class UserDetail(APIView):
-    authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
-    def get_object(self, username):
-        try:
-            obj = Account.objects.get(username=username)
-            self.check_object_permissions(self.request, obj)
-            return obj
-        except ObjectDoesNotExist: #Account.DoesNotExist:
-            raise Http404
-
-    def get(self, request, username, format=None):
-        user = self.get_object(username)
-        serializer = AccountSerializer(user)
-        return Response(serializer.data)
-'''
+# requires admin's token (coming from the app)
+class ConcertsAPICredentials(APIView):
+    authentication_classes = (TokenAuthentication, )
+    permission_classes = (IsAdminUser,)
+    def get(self, request, format=None):
+        return JsonResponse(concerts_events_API_credentials)

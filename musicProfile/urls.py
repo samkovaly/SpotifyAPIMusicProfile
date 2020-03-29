@@ -5,14 +5,16 @@ from django.conf.urls import include
 
 from .spotify import get_spotify_music_profile
 
-from musicProfile.views import UserDetail, UserProfileDetail, UserPostGetAll
-
+from musicProfile.views import UserDetail, UserProfileDetail, UserPostOrGetAll
+from musicProfile.views import SpotifyAppCredentials, ConcertsAPICredentials
 
 
 urlpatterns = [
-    path('users/', UserPostGetAll.as_view()),
+    path('spotify-app-credentials/', SpotifyAppCredentials.as_view()),
+    path('concerts-APIs-credentials/', ConcertsAPICredentials.as_view()),
+    path('users/', UserPostOrGetAll.as_view()),
     path('users/<str:username>', UserDetail.as_view()),
-    path('users/<str:username>/music_profile', UserProfileDetail.as_view()),
+    path('users/music_profile/<str:username>', UserProfileDetail.as_view()),
 ]
 
 
