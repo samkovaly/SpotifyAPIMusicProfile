@@ -36,8 +36,7 @@ class SpotifyAPI:
     USER_PLAYLISTS_ONLY = True # don't change unless you want playlists I follow to also be included
 
 
-    def __init__(self, request):
-        access_token = request.headers['access-token']
+    def __init__(self, access_token):
         self.header = {'Authorization' : "Bearer "+access_token}
         #print('user access token:', access_token)
         self.user_id = self.fetch_user_id()
@@ -57,6 +56,7 @@ class SpotifyAPI:
     def get_music_profile(self):
 
         if self.CACHING_MUSIC_PROFILE_FROM_CSV and self.get_cached_profile_csv():
+            print("caching music profile from local *.csv...")
             pass
         else:
             asyncio.run(self.collect_artists_and_tracks_dataframes())
@@ -97,7 +97,7 @@ class SpotifyAPI:
             "artists" : artists_json,
             "tracks" : tracks_json,
         }
-        print("returning JSON response")
+        print("returning JSON response\n")
         return JsonResponse(music_profile)
 
 

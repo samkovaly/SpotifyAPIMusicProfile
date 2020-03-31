@@ -17,11 +17,11 @@ from rest_framework.views import APIView
 
 from rest_framework.exceptions import NotAuthenticated, AuthenticationFailed
 
-from spotify import get_spotify_music_profile
+from musicProfile.spotify import get_spotify_music_profile
 
 import sys
 sys.path.append("..")
-from local_secrets import spotify_app_credentials_data, concerts_events_API_credentials
+from local_secrets import spotify_app_credentials, concerts_events_API_credentials
 
 
     # samtest:
@@ -34,6 +34,7 @@ from local_secrets import spotify_app_credentials_data, concerts_events_API_cred
     #   token: 6a410c71bbc14adabffb88d2c6ea877bdf42f21e
 
 
+# requried user's own tooken or the master token
 def get_user(request, want_username):
     if request.user.is_authenticated:
         auth_username = request.user.username
@@ -50,7 +51,7 @@ def get_user(request, want_username):
         raise NotAuthenticated("user has invalid authentication")
 
 
-# requried user's token, not master token
+# requried user's own token or the master token
 class UserDetail(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -62,30 +63,30 @@ class UserDetail(APIView):
 
 
 
-# requried user's token, not master token
+# requried user's own token or the master token
 class UserProfileDetail(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
+    # get music profile
     def get(self, request, username, format=None):
         user = get_user(request, username)
         profile = UserProfile.objects.get(user=user)
         profile_serializer = UserProfileSerializer(profile)
         return Response(profile_serializer.data)
 
+    # refresh user music profile
+    # needs master toke in header and a valid access token passed as data to work.
     def post(self, request, username, format=None):
         user = get_user(request, username)
         profile = UserProfile.objects.get(user=user)
 
-        print('request', request)
-        new_music_profile_JSON = get_spotify_music_profile(request)
-        profile.music_profile_JSON = new_music_profile_JSON
+        access_token = request.POST.get("access_token")
+        new_music_profile_JSON = get_spotify_music_profile(access_token)
+        profile.music_profile_JSON = new_music_profile_JSON.content
         profile.save()
 
-        # update profile, then return
-        # request.data has accesstoken / requesttoken
         profile_serializer = UserProfileSerializer(profile)
-
         return Response(profile_serializer.data)
 
 '''
@@ -101,6 +102,7 @@ class HasKeyOrIsAdmin(BasePermission):
         return False
 '''
 
+# admin can get all users or make a new user
 # requires admin's token (coming from the app)
 class UserPostOrGetAll(APIView):
     permission_classes = (IsAdminUser,)
@@ -108,17 +110,17 @@ class UserPostOrGetAll(APIView):
 
     # register new user
     def post(self, request, format=None):
-        serializer = UserSerializer(data=request.data)  
-        data = {}
-        #print("serializer", serializer)
-        if serializer.is_valid():
-            account = serializer.save()
-            data['response'] = 'successfully registered a new user'
-            data['username'] = account.username
-            token = Token.objects.get(user = account).key
-            data['token'] = token
-            return Response(data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user_serializer = UserSerializer(data=request.data)
+        if user_serializer.is_valid() and 'refresh_token' in request.data:
+
+            user = User.objects.create_user(username=request.data['username'],
+                                 password=request.data['password'])
+            profile = UserProfile.objects.get(user=user)
+            profile.refresh_token = request.data['refresh_token']
+            profile.save()
+
+            return Response(user_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # get all users (for me, the admin)
     def get(self, request, format=None):
@@ -133,7 +135,7 @@ class SpotifyAppCredentials(APIView):
     permission_classes = (IsAdminUser,)
 
     def get(self, request, format=None):
-        return JsonResponse(spotify_app_credentials_data)
+        return JsonResponse(spotify_app_credentials)
         
 
 # requires admin's token (coming from the app)

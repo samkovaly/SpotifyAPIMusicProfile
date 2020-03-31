@@ -15,9 +15,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
-    #'DEFAULT_PERMISSION_CLASSES': [
-    #    'rest_framework.permissions.IsAuthenticated',
-    #],
 }
 
 
@@ -39,10 +36,8 @@ INSTALLED_APPS = [
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
-    #'musicProfile.models.AccountBackend',
 ]
 
-#AUTH_USER_MODEL = 'django.contrib.auth.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

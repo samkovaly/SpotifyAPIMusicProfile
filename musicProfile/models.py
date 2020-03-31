@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 
 class UserProfile(models.Model):
     music_profile_JSON = models.TextField(blank=True)
+    refresh_token = models.CharField(max_length=256)
     last_refreshed = models.DateTimeField(auto_now=True)
     user = models.OneToOneField(User, on_delete = models.CASCADE)
     initialized = models.BooleanField(default=False)
@@ -23,9 +24,9 @@ from django.db.models.signals import post_save
 
 @receiver(post_save, sender=User)
 def build_profile_on_user_creation(sender, instance, created, **kwargs):
-  if created:
-    profile = UserProfile(user=instance, initialized=False)
-    profile.save()
+    if created:
+        profile = UserProfile(user=instance, initialized=False)
+        profile.save()
 
 '''
 class MyAccountManager(BaseUserManager):

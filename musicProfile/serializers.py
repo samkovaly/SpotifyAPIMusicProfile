@@ -8,7 +8,8 @@ from rest_framework.authtoken.models import Token
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['music_profile_JSON', 'last_refreshed', 'user']
+        fields = ['music_profile_JSON', 'refresh_token', 'last_refreshed', 'user']
+        extra_kwargs = {'refresh_token': {'write_only': True, 'required': True}}
         
 
 class UserSerializer(serializers.ModelSerializer):

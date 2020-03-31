@@ -3,16 +3,27 @@ from rest_framework.test import APITestCase
 from rest_framework.test import APIClient
 
 from django.contrib.auth.models import User
+from .models import UserProfile
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 
 import json
+
+#from musicProfile.spotify_auth_functionality import get_access_token
+
+import sys
+sys.path.append("..")
+from local_secrets import spotify_app_credentials, MY_SPOTIFY_REFRESH_TOKEN
+
 
 
 API_URL = '/api/'
 AUTH_URL = '/auth/'
 USERS_URL = API_URL+'users/'
 MUSIC_PROFILE_URL= USERS_URL + 'music_profile/'
+
+REFRESH_TOKEN = 'AQDIEGGfPqV_zq-D1C2ZJTmRX5F-i6fC0C6OriVGy-zQTnsK45UEnYmrCYeutq7Hoo188SX7RuPnBiPiyH0GXYMwBNB1qaoZqah61jiD1tlGzdcCWZofcZXu9VDxKyw6Pd4'
+        
 
 #APP_KEY = 'LOOL'
 
@@ -37,14 +48,18 @@ class TestUsers(APITestCase):
         
     # 401 when HasKeyOrIsAdmin fails, 400 when serializer.is_valid() fails
     def test_register_without_credentials(self):
-        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1})
+        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'refresh_token': REFRESH_TOKEN})
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         
     def test_register_with_admin_token(self):
         # user register with admin auth token as header
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
-        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'app_key': APP_KEY})
+        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'refresh_token': REFRESH_TOKEN})
         assert response.status_code == status.HTTP_201_CREATED
+
+        #myuser = UserProfile.objects.get(refresh_token=REFRESH_TOKEN)
+        #print(myuser.refresh_token)
+
     '''
     def test_register_with_app_key(self):
         # user register with secret key from app
@@ -128,8 +143,6 @@ class TestUserMusicProfiles(APITestCase):
         # correct user permission
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
         response = self.client.get(self.user0_musicprofile_url)
-        print('response', response)
-        print('datur', response.data)
         assert response.status_code == status.HTTP_200_OK
         assert 'music_profile_JSON' in response.data
         
@@ -141,6 +154,7 @@ class TestUserMusicProfiles(APITestCase):
         assert response.status_code == status.HTTP_200_OK
         assert 'music_profile_JSON' in response.data
         
+
     def test_get_musicprofile_with_wrong_token(self):
         # incorrect user permission - token does not match the user being accessed
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user1_token.key)
@@ -148,6 +162,22 @@ class TestUserMusicProfiles(APITestCase):
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+##################
+'''
+    # needs a fresh access token
+    def test_update_musicprofile(self):
+        # one test to test our main backend functionality. This test takes a while...
+        # using a user's own token, we fetch and upated the user's music profile (JSON)
+        # this needs a valid access token and refresh token to work.
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
+        
+        #access_token = get_access_token(spotify_app_credentials, MY_SPOTIFY_REFRESH_TOKEN)
+        access_token = 'BQDHb5ebUR0gnxsXAa9BYh6RBXaKoVXumX4Wzgb4BVusRtQ1Het9UWgeS_lSC2bDezGAsMtfWFky7SPV8-nC0hBp3EbiSKvPBzK7uRM_1z6ESabyE7N4-GyYxtElRPcJisDLxPiruSs3Pqw9P0oETBKAV-oLj9NTFLK07lJJMbOQYIZ3c3VyA_S28VMNJpmNX9oIeWYvUaXYbUy4Jv-bLIKDKIsDBNmLmov1QumyYb8NV9K9rNrlyDfQVZzl'
+        response = self.client.post(self.user0_musicprofile_url, {'access_token': access_token})
+        assert response.status_code == status.HTTP_200_OK
+        assert 'music_profile_JSON' in response.data
+'''
+##################
 
 class TestSpotifyAppCredentials(APITestCase):
     def setUp(self):
