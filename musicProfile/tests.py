@@ -13,152 +13,115 @@ import json
 
 import sys
 sys.path.append("..")
-from local_secrets import spotify_app_credentials, MY_SPOTIFY_REFRESH_TOKEN
+from local_secrets import spotify_app_credentials
+from local_secrets import SECRET_APP_KEY
 
 
 
 API_URL = '/api/'
-AUTH_URL = '/auth/'
+LOGIN_URL = API_URL+'login/'
+REGISTER_URL = API_URL+'register/'
+
 USERS_URL = API_URL+'users/'
 MUSIC_PROFILE_URL= USERS_URL + 'music_profile/'
 
-REFRESH_TOKEN = 'AQDIEGGfPqV_zq-D1C2ZJTmRX5F-i6fC0C6OriVGy-zQTnsK45UEnYmrCYeutq7Hoo188SX7RuPnBiPiyH0GXYMwBNB1qaoZqah61jiD1tlGzdcCWZofcZXu9VDxKyw6Pd4'
-        
 
-#APP_KEY = 'LOOL'
+# must be fresh, probably provided by yourself via your own app or the spotify
+TESTING_USERNAME = 'axaviar'
+TESTING_REFRESH_TOKEN = 'AQAtpRiO2S0mr76W2Agn1o_3TVEvw5Ylz23-uTf60bqx2NVvEFcpkhmEfBvct94da_WRNj36REjIs0BKRgGvK4KUwPQCrrkZJTgQTYN4o9VPH5tzGGQ3hig3iM20XWbQNMA'
+TESTING_ACCESS_TOKEN = 'BQDw0aNyKcdRqGfEWzXz9A4FJMcLg3kvA5hrrMUUjsSXyIPk6qFfyQ7QoHVp75EFWSllH4EGi4YvHgLxILaj9a7BL6JAGj4Lr8ov1tIvlL973w3Ef7gAf7Tf8sjbJ86BfH1f_hz7v2aaWzCXZg1KgOG6piRyBC5GDV4s7vJu6oRHrFAQDq0fJQXXm3Y2bJEEktao7-ThkFnCnw3kUyBytY1-TRFBpd6I50Qsmi9aVes2BF-09YsMAgY8vHnk'
 
 class TestUsers(APITestCase):
     def setUp(self):
         self.client = APIClient()
-
-        self.admin_user = User.objects.create_superuser('admin', 'myemail@test.com', 'adminboy')
-        self.admin_token = Token.objects.create(user=self.admin_user)
-
-        self.user0_username = 'mike'
-        self.user0_password = 'pass'
-        self.user0 = User.objects.create_user(username=self.user0_username, password=self.user0_password)
-        self.user0_token = Token.objects.create(user=self.user0)
-
-        self.username1 = 'username1'
-        self.password1 = 'password1'
-        self.username2 = 'username2'
-        self.password2 = 'password2'
-
-
         
-    # 401 when HasKeyOrIsAdmin fails, 400 when serializer.is_valid() fails
-    def test_register_without_credentials(self):
-        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'refresh_token': REFRESH_TOKEN})
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    def test_register_without_all_fields(self):
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'refresh_token': TESTING_REFRESH_TOKEN})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
         
-    def test_register_with_admin_token(self):
-        # user register with admin auth token as header
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
-        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'refresh_token': REFRESH_TOKEN})
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        
+        response = self.client.post(REGISTER_URL, {'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        
+    def test_register_access_token_username_mismatch(self):
+        response = self.client.post(REGISTER_URL, {'username': 'random_lol', 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        
+    def test_register_new_user(self):
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
         assert response.status_code == status.HTTP_201_CREATED
 
-        #myuser = UserProfile.objects.get(refresh_token=REFRESH_TOKEN)
-        #print(myuser.refresh_token)
 
-    '''
-    def test_register_with_app_key(self):
-        # user register with secret key from app
-        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'app_key': APP_KEY})
+    def test_register_old_user(self):
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+        
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': 'new_refreshnew_refresh_tokennew_refresh_tokennew_refresh_tokennew_refresh_token_tokennew_refresh_token'})
         assert response.status_code == status.HTTP_201_CREATED
-    def test_register_with_bad_app_key(self):
-        response = self.client.post(USERS_URL, {'username': self.username1, 'password': self.password1, 'app_key': 'random lol'})
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    '''
-
-    def test_get_all_users_with_admin_token(self):
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
-        response = self.client.get(USERS_URL)
-        num_users = len(response.data)
-        assert num_users > 0
-
 
     # get user auth token for user0 and make sure it works
     # aka: user login
-    def test_user_auth_token(self):
-        response = self.client.post(AUTH_URL, {'username': self.user0_username, 'password': self.user0_password})
+    def test_login_auth_token(self):
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+
+        response = self.client.post(LOGIN_URL, {'username': TESTING_USERNAME, 'refresh_token': TESTING_REFRESH_TOKEN})
         assert response.status_code == status.HTTP_200_OK
 
         token = response.data['token']
         assert token is not None
-        
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
-        response = self.client.get(USERS_URL + self.user0_username)
-        assert response.status_code == status.HTTP_200_OK
+
+    def test_login_bad_credentials(self):
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+
+        response = self.client.post(LOGIN_URL, {'username': TESTING_USERNAME, 'refresh_token': 'blah'})
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_login_no_refresh_token(self):
+        response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+
+        response = self.client.post(LOGIN_URL, {'username': TESTING_USERNAME})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 
 class TestUserMusicProfiles(APITestCase):
     def setUp(self):
         self.client = APIClient()
-
-        self.admin_user = User.objects.create_superuser('admin', 'myemail@test.com', 'adminboy')
-        self.admin_token = Token.objects.create(user=self.admin_user)
-
-        self.user0_username = 'mike'
-        self.user0_password = 'pass'
-        self.user0 = User.objects.create_user(username=self.user0_username, password=self.user0_password)
-        self.user0_token = Token.objects.create(user=self.user0)
-        self.user0_url = USERS_URL + self.user0_username
-        self.user0_musicprofile_url = MUSIC_PROFILE_URL + self.user0_username
-
-        self.user1_username = 'miguel'
-        self.user1_password = 'pass'
-        self.user1 = User.objects.create_user(username=self.user1_username, password=self.user1_password)
-        self.user1_token = Token.objects.create(user=self.user1)
-        self.user1_url = USERS_URL + self.user1_username
-        self.user1_musicprofile_url = MUSIC_PROFILE_URL + self.user1_username
-
     
+        self.user0 = User.objects.create_user(username='mike', password='pass')
+        self.user0_token = Token.objects.create(user=self.user0)
+
+        self.register_response = self.client.post(REGISTER_URL, {'username': TESTING_USERNAME, 'access_token': TESTING_ACCESS_TOKEN, 'refresh_token': TESTING_REFRESH_TOKEN})
+        
+
     def test_get_user_with_user_permission(self):
-        # correct user permission
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
-        response = self.client.get(self.user0_url)
+        response = self.client.post(LOGIN_URL, {'username': TESTING_USERNAME, 'refresh_token': TESTING_REFRESH_TOKEN})
+        token = response.data['token']
+        # get user with token
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = self.client.get(USERS_URL + TESTING_USERNAME)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['username'] == self.user0_username
-        assert 'userprofile' in response.data
-        
-        
-    def test_get_user_with_admin_permission(self):
-        # correct user permission because using admin token
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
-        response = self.client.get(self.user0_url)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data['username'] == self.user0_username
-        assert 'userprofile' in response.data
         
     def test_get_user_with_wrong_token(self):
         # incorrect user permission - token does not match the user being accessed
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user1_token.key)
-        response = self.client.get(self.user0_url)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
+        response = self.client.get(USERS_URL + TESTING_USERNAME)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-
-
-
     def test_get_musicprofile_with_user_permission(self):
-        # correct user permission
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
-        response = self.client.get(self.user0_musicprofile_url)
+        response = self.client.post(LOGIN_URL, {'username': TESTING_USERNAME, 'refresh_token': TESTING_REFRESH_TOKEN})
+        token = response.data['token']
+        # get user with token
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = self.client.get(USERS_URL + "music_profile/" + TESTING_USERNAME)
         assert response.status_code == status.HTTP_200_OK
         assert 'music_profile_JSON' in response.data
-        
-        
-    def test_get_musicprofile_with_admin_permission(self):
-        # correct user permission because using admin token
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
-        response = self.client.get(self.user0_musicprofile_url)
-        assert response.status_code == status.HTTP_200_OK
-        assert 'music_profile_JSON' in response.data
-        
 
     def test_get_musicprofile_with_wrong_token(self):
         # incorrect user permission - token does not match the user being accessed
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user1_token.key)
-        response = self.client.get(self.user0_musicprofile_url)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
+        response = self.client.get(USERS_URL + "music_profile/" + TESTING_USERNAME)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -183,56 +146,34 @@ class TestSpotifyAppCredentials(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.spotify_app_credentials_url = API_URL + 'spotify-app-credentials/'
-
-        self.admin_user = User.objects.create_superuser('admin', 'myemail@test.com', 'adminboy')
-        self.admin_token = Token.objects.create(user=self.admin_user)
-        self.user0 = User.objects.create_user(username='mike', password='pass')
-        self.user0_token = Token.objects.create(user=self.user0)
         
 
-    def test_get_spotify_app_credentials_with_admin(self):
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
+    def test_get_spotify_app_credentials_with_app_key(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + SECRET_APP_KEY)
         response = self.client.get(self.spotify_app_credentials_url)
         assert response.status_code == status.HTTP_200_OK
         assert 'clientId' in json.loads(response.content)
 
 
-    def test_get_spotify_app_credentials_with_user(self):
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
-        response = self.client.get(self.spotify_app_credentials_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-
     def test_get_spotify_app_credentials_no_auth(self):
         self.client.credentials()
         response = self.client.get(self.spotify_app_credentials_url)
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 class TestConcertsAPICredentials(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.concerts_api_credentials_url = API_URL + 'concerts-APIs-credentials/'
-
-        self.admin_user = User.objects.create_superuser('admin', 'myemail@test.com', 'adminboy')
-        self.admin_token = Token.objects.create(user=self.admin_user)
-        self.user0 = User.objects.create_user(username='mike', password='pass')
-        self.user0_token = Token.objects.create(user=self.user0)
         
 
-    def test_get_concerts_api_credentials_url_with_admin(self):
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token.key)
+    def test_get_concerts_api_credentials_url_with_app_key(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + SECRET_APP_KEY)
         response = self.client.get(self.concerts_api_credentials_url)
         assert response.status_code == status.HTTP_200_OK
         assert 'eventful' in json.loads(response.content)
 
-    def test_get_concerts_api_credentials_url_with_user(self):
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user0_token.key)
-        response = self.client.get(self.concerts_api_credentials_url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
     def test_get_concerts_api_credentials_url_no_auth(self):
         self.client.credentials()
         response = self.client.get(self.concerts_api_credentials_url)
-        print(response)
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.status_code == status.HTTP_403_FORBIDDEN

@@ -27,12 +27,18 @@ def get_spotify_music_profile(request):
 class SpotifyAPI:
     REQUEST_EXCEPTION_MSG = "Spotify API Request Exception while fetching "
 
+    REDUCE_ARTISTS_AND_TRACKS = True
+    MAX_ARTISTS_RETURNED = 100
+    MAX_TRACKS_RETURNED = 100
+
     REDUCE_PLAYLISTS = True
     MAX_PLAYLISTS = 5
+    
     SAVE_DF_TO_FILE = True
     CACHING_MUSIC_PROFILE_FROM_CSV = True
     CACHED_ARTISTS_FILE = "cached_artists.csv"
     CACHED_TRACKS_FILE = "cached_tracks.csv"
+    
     USER_PLAYLISTS_ONLY = True # don't change unless you want playlists I follow to also be included
 
 
@@ -70,6 +76,13 @@ class SpotifyAPI:
         self.artists_df.drop(columns=['genres', 'tracks', 'image_size'], inplace=True)
         
         print("converting dataframes to JSON...")
+
+        if self.REDUCE_ARTISTS_AND_TRACKS:
+            self.artists_df = self.artists_df.head(self.MAX_ARTISTS_RETURNED)
+            self.artists_df = self.artists_df.head(self.MAX_TRACKS_RETURNED)
+
+        print(f'returning {self.MAX_ARTISTS_RETURNED} artists and {self.MAX_TRACKS_RETURNED} tracks')
+
         artists_json = self.get_artists_json(self.artists_df)
         tracks_json = self.get_tracks_json(self.tracks_df)
 
@@ -97,8 +110,8 @@ class SpotifyAPI:
             "artists" : artists_json,
             "tracks" : tracks_json,
         }
-        print("returning JSON response\n")
-        return JsonResponse(music_profile)
+        return json.dumps(music_profile)
+        #return JsonResponse(music_profile)
 
 
     def get_cached_profile_csv(self):
@@ -425,7 +438,6 @@ class SpotifyAPI:
 
     ''' fetch user id is implemented with requests library instead of asyncio '''
     def fetch_user_id(self):
-        print("fetching user id...")
         #resp_dict = await self.fetch_json_from_URL(URL = "https://api.spotify.com/v1/me", name = "user id")
         #return resp_dict['id']
 

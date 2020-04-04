@@ -3,7 +3,7 @@
 db.sqlite3
 
 local_secrets.py
-musicProfile/spotify_auth_functionality.py
+
 
 *.csv
 *.json
