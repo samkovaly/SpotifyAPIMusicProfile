@@ -28,11 +28,11 @@ class SpotifyAPI:
     REQUEST_EXCEPTION_MSG = "Spotify API Request Exception while fetching "
 
     REDUCE_ARTISTS_AND_TRACKS = True
-    MAX_ARTISTS_RETURNED = 100
-    MAX_TRACKS_RETURNED = 100
+    MAX_ARTISTS_RETURNED = 300
+    MAX_TRACKS_RETURNED = 300
 
     REDUCE_PLAYLISTS = True
-    MAX_PLAYLISTS = 5
+    MAX_PLAYLISTS = 10
     
     SAVE_DF_TO_FILE = True
     CACHING_MUSIC_PROFILE_FROM_CSV = True
@@ -73,7 +73,8 @@ class SpotifyAPI:
                 except:
                     print("can't save to new .csv, files are open")
 
-        self.artists_df.drop(columns=['genres', 'tracks', 'image_size'], inplace=True)
+
+        #self.artists_df.drop(columns=['genres', 'tracks', 'image_size'], inplace=True)
         
         print("converting dataframes to JSON...")
 
@@ -86,12 +87,12 @@ class SpotifyAPI:
         artists_json = self.get_artists_json(self.artists_df)
         tracks_json = self.get_tracks_json(self.tracks_df)
 
-        with open("artists_json.json", 'w') as artists_json_file:
-            artists_json_file.write(artists_json)
+        #with open("artists_json.json", 'w') as artists_json_file:
+        #    artists_json_file.write(artists_json)
             
         
-        with open("tracks_json.json", 'w') as tracks_json_file:
-            tracks_json_file.write(tracks_json)
+        #with open("tracks_json.json", 'w') as tracks_json_file:
+        #    tracks_json_file.write(tracks_json)
             
 
 
@@ -180,6 +181,7 @@ class SpotifyAPI:
             genre_list = [x for x in list(set(genres)) if str(x) != 'nan']
             return genre_list
         artists_df_transform['genres'] = agg_genres_list
+
         
         
         try:
@@ -195,6 +197,20 @@ class SpotifyAPI:
         artists_df[self.artist_columns] = artists_df[self.artist_columns].fillna(value=False)
         artists_df.reset_index(level=['id', 'name'], inplace = True)
         #artists_df = artists_df.reset_index()
+
+
+        # add artist's tracks_length
+        def get_tracks_len(row):
+            return len(list(row['tracks']))
+        artists_df['tracks_length'] = artists_df.apply(get_tracks_len, axis=1)
+
+        # add artist's genres_length
+        def get_genres_len(row):
+            return len(list(row['genres']))
+        artists_df['genres_length'] = artists_df.apply(get_genres_len, axis=1)
+
+
+
         return artists_df
 
 
