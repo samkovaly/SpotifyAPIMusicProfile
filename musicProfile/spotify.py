@@ -11,7 +11,7 @@ from pandas import json_normalize
 import json
 from functools import reduce
 
-
+import unidecode
 
 from random import randint
 from time import sleep
@@ -127,6 +127,10 @@ class SpotifyAPI:
 
 
     def get_artists_json(self, artists_df):
+        #def get_tracks_json(row):
+        #    return json.dumps(list(row['tracks']))
+        #artists_df['tracks_json'] = artists_df.apply(get_tracks_json, axis=1)
+
         return artists_df.to_json(orient='records')
 
     def get_tracks_json(self, tracks_df):
@@ -209,7 +213,9 @@ class SpotifyAPI:
             return len(list(row['genres']))
         artists_df['genres_length'] = artists_df.apply(get_genres_len, axis=1)
 
-
+        def get_ascii_artist_name(row):
+            return unidecode.unidecode(row['name'])
+        artists_df['name_ascii'] = artists_df.apply(get_ascii_artist_name, axis=1)
 
         return artists_df
 
