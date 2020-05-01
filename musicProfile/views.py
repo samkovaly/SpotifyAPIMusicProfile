@@ -171,7 +171,7 @@ class UserProfileDetail(APIView):
         user = get_user(request, username)
         profile = UserProfile.objects.get(user=user)
         profile_serializer = UserProfileSerializer(profile)
-        print('returning:', profile_serializer.data['music_profile_JSON'][0:100], '\n')
+        print('returning:', profile_serializer.data['music_profile_JSON'][0:500], '...\n')
         return Response(profile_serializer.data)
 
     # refresh user music profile

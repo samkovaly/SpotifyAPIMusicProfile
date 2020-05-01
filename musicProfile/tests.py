@@ -31,6 +31,9 @@ TESTING_USERNAME = 'axaviar'
 TESTING_REFRESH_TOKEN = 'AQAtpRiO2S0mr76W2Agn1o_3TVEvw5Ylz23-uTf60bqx2NVvEFcpkhmEfBvct94da_WRNj36REjIs0BKRgGvK4KUwPQCrrkZJTgQTYN4o9VPH5tzGGQ3hig3iM20XWbQNMA'
 TESTING_ACCESS_TOKEN = 'BQDw0aNyKcdRqGfEWzXz9A4FJMcLg3kvA5hrrMUUjsSXyIPk6qFfyQ7QoHVp75EFWSllH4EGi4YvHgLxILaj9a7BL6JAGj4Lr8ov1tIvlL973w3Ef7gAf7Tf8sjbJ86BfH1f_hz7v2aaWzCXZg1KgOG6piRyBC5GDV4s7vJu6oRHrFAQDq0fJQXXm3Y2bJEEktao7-ThkFnCnw3kUyBytY1-TRFBpd6I50Qsmi9aVes2BF-09YsMAgY8vHnk'
 
+# RUN WITH:
+#  python ./manage.py test
+
 class TestUsers(APITestCase):
     def setUp(self):
         self.client = APIClient()

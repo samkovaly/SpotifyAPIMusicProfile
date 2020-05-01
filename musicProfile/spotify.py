@@ -18,8 +18,6 @@ from time import sleep
 
 
 def get_spotify_music_profile(request):
-    
-
     spotifyAPI = SpotifyAPI(request)
     return spotifyAPI.get_music_profile()
 
@@ -32,19 +30,13 @@ class SpotifyAPI:
     MAX_TRACKS_RETURNED = 300
 
     REDUCE_PLAYLISTS = True
-    MAX_PLAYLISTS = 10
-    
-    SAVE_DF_TO_FILE = True
-    CACHING_MUSIC_PROFILE_FROM_CSV = True
-    CACHED_ARTISTS_FILE = "cached_artists.csv"
-    CACHED_TRACKS_FILE = "cached_tracks.csv"
-    
+    MAX_PLAYLISTS = 20
+
     USER_PLAYLISTS_ONLY = True # don't change unless you want playlists I follow to also be included
 
 
     def __init__(self, access_token):
         self.header = {'Authorization' : "Bearer "+access_token}
-        #print('user access token:', access_token)
         self.user_id = self.fetch_user_id()
 
         self.artist_columns = []
@@ -54,26 +46,9 @@ class SpotifyAPI:
 
         self.artist_image_size_min = 100
 
-        #self.test_increment = 0
-        #self.caching_from_pre_agg = True
-
-
 
     def get_music_profile(self):
-
-        if self.CACHING_MUSIC_PROFILE_FROM_CSV and self.get_cached_profile_csv():
-            print("caching music profile from local *.csv...")
-            pass
-        else:
-            asyncio.run(self.collect_artists_and_tracks_dataframes())
-            if self.SAVE_DF_TO_FILE:
-                try:
-                    self.artists_df.to_csv(self.CACHED_ARTISTS_FILE, index=False)
-                    self.tracks_df.to_csv(self.CACHED_TRACKS_FILE, index=False)
-                except:
-                    print("can't save to new .csv, files are open")
-
-
+        asyncio.run(self.collect_artists_and_tracks_dataframes())
         #self.artists_df.drop(columns=['genres', 'tracks', 'image_size'], inplace=True)
         
         print("converting dataframes to JSON...")
@@ -86,14 +61,6 @@ class SpotifyAPI:
 
         artists_json = self.get_artists_json(self.artists_df)
         tracks_json = self.get_tracks_json(self.tracks_df)
-
-        #with open("artists_json.json", 'w') as artists_json_file:
-        #    artists_json_file.write(artists_json)
-            
-        
-        #with open("tracks_json.json", 'w') as tracks_json_file:
-        #    tracks_json_file.write(tracks_json)
-            
 
 
         ''' artists_json: dataframe of:
@@ -112,18 +79,7 @@ class SpotifyAPI:
             "tracks" : tracks_json,
         }
         return json.dumps(music_profile)
-        #return JsonResponse(music_profile)
 
-
-    def get_cached_profile_csv(self):
-        try:
-            self.artists_df = pd.read_csv(self.CACHED_ARTISTS_FILE)
-            self.tracks_df = pd.read_csv(self.CACHED_TRACKS_FILE)
-            return True
-        
-        except Exception as e:
-            print('failed to find all cached files, must re-build:\n', e)
-            return False
 
 
     def get_artists_json(self, artists_df):
@@ -187,13 +143,6 @@ class SpotifyAPI:
         artists_df_transform['genres'] = agg_genres_list
 
         
-        
-        try:
-            artists_df.to_csv("artists_df_before_final_agg.csv")
-        except Exception as e:
-            print(self.REQUEST_EXCEPTION_MSG + "art_final", e)
-
-
         artists_df = artists_df.groupby(['id', 'name']).agg(artists_df_transform)
 
 
