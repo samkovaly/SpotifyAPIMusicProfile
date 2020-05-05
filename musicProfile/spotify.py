@@ -26,11 +26,13 @@ class SpotifyAPI:
     REQUEST_EXCEPTION_MSG = "Spotify API Request Exception while fetching "
 
     REDUCE_ARTISTS_AND_TRACKS = True
-    MAX_ARTISTS_RETURNED = 300
-    MAX_TRACKS_RETURNED = 300
+    MAX_ARTISTS_RETURNED = 600
+    MAX_TRACKS_RETURNED = 600
 
     REDUCE_PLAYLISTS = True
-    MAX_PLAYLISTS = 20
+    MAX_PLAYLISTS = 30
+
+    SHOW_ACCESS = False
 
     USER_PLAYLISTS_ONLY = True # don't change unless you want playlists I follow to also be included
 
@@ -38,6 +40,9 @@ class SpotifyAPI:
     def __init__(self, access_token):
         self.header = {'Authorization' : "Bearer "+access_token}
         self.user_id = self.fetch_user_id()
+
+        if self.SHOW_ACCESS:
+            print('access token', access_token)
 
         self.artist_columns = []
         self.track_columns = []
@@ -129,7 +134,7 @@ class SpotifyAPI:
         artists_df_transform = {}
         for column in self.artist_columns:
             artists_df_transform[column] = 'max'
-        # takes 320 over 300 for example. some artists have 300 px images instead of 320 (don't know)
+        # takes 320 over 300 for example. some artists have 300 px images instead of 320 (don't know why)
         artists_df_transform['image_size'] = 'min'
         artists_df_transform['image_url'] = 'first'
         def agg_track_list(tracks):         # set to remove duplicates
@@ -173,7 +178,21 @@ class SpotifyAPI:
         tracks_df = reduce(lambda left, right: pd.merge(left, right, how="outer"), self.tracks_dataframes)
         tracks_df = tracks_df.drop_duplicates()
         tracks_df[self.track_columns] = tracks_df[self.track_columns].fillna(value=False)
-        #tracks_df = tracks_df.reset_index()
+
+        tracks_df_transform = {}
+        tracks_df_transform['image_size'] = 'min'
+        tracks_df_transform['image_url'] = 'first'
+
+        tracks_df_transform['top_tracks_short_term'] = 'first'
+        tracks_df_transform['saved_tracks'] = 'first'
+        tracks_df_transform['top_tracks_medium_term'] = 'first'
+        tracks_df_transform['top_tracks_long_term'] = 'first'
+        tracks_df_transform['playlist'] = 'first'
+
+
+        tracks_df = tracks_df.groupby(['id', 'name', 'uri']).agg(tracks_df_transform)
+        tracks_df.reset_index(level=['id', 'name', 'uri'], inplace = True)
+
         return tracks_df
 
 
@@ -202,7 +221,6 @@ class SpotifyAPI:
         self.artists_dataframes.append(pd.concat(top_artists))
         
 
-
     async def fetch_top_tracks(self, time_range):
         print('fetching top tracks... ', time_range)
         self.track_columns.append("top_tracks_" + time_range)
@@ -214,22 +232,23 @@ class SpotifyAPI:
         for offset in offsets:
             URL = "https://api.spotify.com/v1/me/top/tracks?limit=50&offset="+str(offset)+"&time_range="+time_range
             resp_dict = await self.fetch_json_from_URL(URL = URL, name = "artists from top tracks({})".format(time_range))
+
             if resp_dict['items']:
-                data = json_normalize(data = resp_dict['items'], record_path=['artists'], meta=['id', 'name'], meta_prefix='track.')
 
-
-                # take care of tracks first, much simpler
-                tracks_df = self.reduce_tracks_df(data)
-                tracks_df["top_tracks_"+time_range] = True
-
-                artists_df = data[['id', 'name', 'track.id']]
-
+                artists_df = json_normalize(data = resp_dict['items'], record_path=['artists'], meta=['id'], meta_prefix='track.')
+                artists_df = artists_df[['id', 'name', 'track.id']]
                 all_artists.append(artists_df)
+
+                tracks_df = json_normalize(data = resp_dict['items'], record_path=['album', 'images'], meta=['id', 'name', 'uri'], meta_prefix='track.')
+                tracks_df = self.cleanup_tracks_df(tracks_df)
+                tracks_df["top_tracks_"+time_range] = True
                 all_tracks.append(tracks_df)
 
         self.artists_dataframes.append(pd.concat(all_artists))
-        self.tracks_dataframes.append(pd.concat(all_tracks).drop_duplicates(subset = 'id'))
-    
+        self.tracks_dataframes.append(pd.concat(all_tracks))
+        #self.tracks_dataframes.append(pd.concat(all_tracks).drop_duplicates(subset = 'id'))
+
+
 
     async def fetch_followed_artists(self):
         print('fetching followed artists... ')
@@ -258,18 +277,21 @@ class SpotifyAPI:
         
         while next:
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "saved tracks")
-            data = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'name'], ['track', 'id']])
 
-            tracks_df = self.reduce_tracks_df(data)
-            tracks_df["saved_tracks"] = True
-            artists_df = data[['id', 'name', 'track.id']]
-
+            artists_df = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'id']])
+            artists_df = artists_df[['id', 'name', 'track.id']]
             all_artists.append(artists_df)
+
+            tracks_df = json_normalize(data = resp_dict['items'], record_path=['track', 'album', 'images'], meta=[['track', 'name'], ['track', 'id'], ['track', 'uri']])
+            tracks_df = self.cleanup_tracks_df(tracks_df)
+            tracks_df["saved_tracks"] = True
             all_tracks.append(tracks_df)
+
             next = resp_dict['next']
 
         self.artists_dataframes.append(pd.concat(all_artists))
-        self.tracks_dataframes.append(pd.concat(all_tracks).drop_duplicates(subset = 'id'))
+        self.tracks_dataframes.append(pd.concat(all_tracks))
+        #self.tracks_dataframes.append(pd.concat(all_tracks).drop_duplicates(subset = 'id'))
 
 
     async def fetch_playlists(self):
@@ -325,18 +347,22 @@ class SpotifyAPI:
         all_tracks = []
         while next:
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "tracks from playlist")
-            data = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'name'], ['track', 'id']])
-            artists_df = data[['id', 'name', 'track.id']]
 
-            tracks_df = self.reduce_tracks_df(data)
-            tracks_df["playlist"] = True
 
+            artists_df = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'id']])
+            artists_df = artists_df[['id', 'name', 'track.id']]
             all_artists.append(artists_df)
+
+            tracks_df = json_normalize(data = resp_dict['items'], record_path=['track', 'album', 'images'], meta=[['track', 'name'], ['track', 'id'], ['track', 'uri']])
+            tracks_df = self.cleanup_tracks_df(tracks_df)
+            tracks_df["playlist"] = True
             all_tracks.append(tracks_df)
+
             next = resp_dict['next']
 
         all_artists = pd.concat(all_artists)
-        all_tracks = pd.concat(all_tracks).drop_duplicates(subset = 'id')
+        all_tracks = pd.concat(all_tracks)
+        #all_tracks = pd.concat(all_tracks).drop_duplicates(subset = 'id')
         return all_artists, all_tracks
 
 
@@ -399,12 +425,23 @@ class SpotifyAPI:
         return artists_df
 
 
-
-    ''' takes full tracks dataframe and takes only the track's id and name columns '''
-    def reduce_tracks_df(self, full_tracks_df):
-        tracks_df = full_tracks_df[['track.id', 'track.name']]
-        tracks_df = tracks_df.rename(columns={'track.id': 'id', 'track.name': 'name'})
+    '''
+    track: {
+        name
+        id
+        uri
+        album: {
+            images [{}]
+        }
+        artists: [{}]
+    '''
+    def cleanup_tracks_df(self, tracks_df):
+        #   id      name        uri            height    width   url
+        tracks_df = tracks_df.rename(columns={'track.id': 'id', 'track.name': 'name', 'track.uri': 'uri', 'url': 'image_url', 'width': 'image_size'})
+        tracks_df = tracks_df.drop(['height'], axis=1)
         return tracks_df
+        
+
 
 
     ''' fetch user id is implemented with requests library instead of asyncio '''

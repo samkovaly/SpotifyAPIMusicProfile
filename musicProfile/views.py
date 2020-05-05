@@ -21,7 +21,7 @@ from musicProfile.spotify import get_spotify_music_profile
 
 import sys
 sys.path.append("..")
-from local_secrets import spotify_app_credentials, concerts_events_API_credentials
+from local_secrets import spotify_app_credentials, API_credentials
 from local_secrets import SECRET_APP_KEY
 
 from musicProfile.spotify_auth_functionality import fetch_user_id
@@ -48,10 +48,10 @@ class SpotifyAppCredentials(APIView):
         return JsonResponse(spotify_app_credentials)
 
 # requires admin's token (coming from the app)
-class ConcertsAPICredentials(APIView):
+class APICredentials(APIView):
     permission_classes = (HasAppKey,)
     def get(self, request, format=None):
-        return JsonResponse(concerts_events_API_credentials)
+        return JsonResponse(API_credentials)
 
 
 
