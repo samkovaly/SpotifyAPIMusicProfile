@@ -2,6 +2,7 @@ from rest_framework.response import Response
 
 from rest_framework import status
 from django.http import JsonResponse
+import json
 
 from django.contrib.auth.models import User
 from musicProfile.models import UserProfile
@@ -184,12 +185,17 @@ class UserProfileDetail(APIView):
         access_token = request.data.get('access_token')
         if not access_token:
             return Response('Please provide a valid access token', status=status.HTTP_400_BAD_REQUEST)
-        new_music_profile_JSON = get_spotify_music_profile(access_token)  
 
+        new_music_profile = get_spotify_music_profile(access_token)
+        new_music_profile_JSON = json.dumps(new_music_profile)
         print('\n')
 
-        profile.music_profile_JSON = new_music_profile_JSON
-        profile.save()
+        if 'error' in new_music_profile:
 
-        profile_serializer = UserProfileSerializer(profile)
-        return Response(profile_serializer.data)
+            return JsonResponse(new_music_profile)
+        else:
+            profile.music_profile_JSON = new_music_profile_JSON
+            profile.save()
+
+            profile_serializer = UserProfileSerializer(profile)
+            return Response(profile_serializer.data)

@@ -16,21 +16,35 @@ import unidecode
 from random import randint
 from time import sleep
 
+import traceback
+import sys
+
 
 def get_spotify_music_profile(request):
     spotifyAPI = SpotifyAPI(request)
-    return spotifyAPI.get_music_profile()
+    try:
+        music_profile = spotifyAPI.get_music_profile()
+        return music_profile
+    except Exception as e:
+        print(traceback.format_exc())
+        error_report = {
+            'error': {
+                'message': str(e),
+                'status': 500,
+            }
+        }
+        return error_report
 
 
 class SpotifyAPI:
     REQUEST_EXCEPTION_MSG = "Spotify API Request Exception while fetching "
 
     REDUCE_ARTISTS_AND_TRACKS = True
-    MAX_ARTISTS_RETURNED = 600
-    MAX_TRACKS_RETURNED = 600
+    MAX_ARTISTS_RETURNED = 10000
+    MAX_TRACKS_RETURNED = 10000
 
     REDUCE_PLAYLISTS = True
-    MAX_PLAYLISTS = 30
+    MAX_PLAYLISTS = 100
 
     SHOW_ACCESS = False
 
@@ -60,9 +74,9 @@ class SpotifyAPI:
 
         if self.REDUCE_ARTISTS_AND_TRACKS:
             self.artists_df = self.artists_df.head(self.MAX_ARTISTS_RETURNED)
-            self.artists_df = self.artists_df.head(self.MAX_TRACKS_RETURNED)
+            self.tracks_df = self.tracks_df.head(self.MAX_TRACKS_RETURNED)
 
-        print(f'returning {self.MAX_ARTISTS_RETURNED} artists and {self.MAX_TRACKS_RETURNED} tracks')
+        print(f'returning { self.artists_df.shape[0] } artists and { self.tracks_df.shape[0] } tracks')
 
         artists_json = self.get_artists_json(self.artists_df)
         tracks_json = self.get_tracks_json(self.tracks_df)
@@ -83,7 +97,7 @@ class SpotifyAPI:
             "artists" : artists_json,
             "tracks" : tracks_json,
         }
-        return json.dumps(music_profile)
+        return music_profile
 
 
 
@@ -118,14 +132,17 @@ class SpotifyAPI:
 
 
     async def get_artists_master_df(self):
-
         artists_df = reduce(lambda left, right: pd.merge(left, right, how="outer"), self.artists_dataframes)
         artists_df = artists_df.drop_duplicates()
+
 
         # here, i fill in missing values
         # with a second gather operation
         artists_missing = artists_df[artists_df['image_size'].isnull()]
+
         artist_missing_list = artists_missing['id'].tolist()
+        artist_missing_list = list(set(artist_missing_list))
+
         artists_full_df = await self.get_full_artist_dataframes(artist_missing_list)
         artists_df = pd.merge(artists_df, artists_full_df, how="outer")
         artists_df = artists_df.drop_duplicates()
@@ -137,6 +154,7 @@ class SpotifyAPI:
         # takes 320 over 300 for example. some artists have 300 px images instead of 320 (don't know why)
         artists_df_transform['image_size'] = 'min'
         artists_df_transform['image_url'] = 'first'
+        
         def agg_track_list(tracks):         # set to remove duplicates
             track_list = [x for x in list(set(tracks)) if str(x) != 'nan']
             return track_list
@@ -149,6 +167,7 @@ class SpotifyAPI:
 
         
         artists_df = artists_df.groupby(['id', 'name']).agg(artists_df_transform)
+
 
 
         artists_df.rename(columns = {'track.id': 'tracks'}, inplace = True)
@@ -382,8 +401,8 @@ class SpotifyAPI:
 
     ''' IDs should be of length 50 or less '''
     async def fetch_full_artists(self, IDs):
-        print(f'fetching full artist details for {len(IDs)} artists')
-        print(f"  first aritst ID is {IDs[0]}")
+        #print(f'fetching full artist details for {len(IDs)} artists')
+        #print(f"  first aritst ID is {IDs[0]}")
         URL = "https://api.spotify.com/v1/artists"
 
         resp_dict = await self.fetch_json_from_URL(
@@ -463,12 +482,40 @@ class SpotifyAPI:
 
 
     ''' basic fetch json from URL function implemented with aiohttp async. (need asyncio gath to call). '''
-    async def fetch_json_from_URL(self, URL, params = None, name = ""):
+    async def fetch_json_from_URL(self, URL, params = None, name = "", depth = 0):
         r = None
         try:
-            async with aiohttp.ClientSession(raise_for_status=True) as session:
+            async with aiohttp.ClientSession(raise_for_status=False) as session:
                 r = await session.get(URL, params = params, headers = self.header)
-                #print(URL)
+            
+                # can try again after waiting for a bit, not really an error
+                if r.status == 429:
+
+                    if depth > 3:
+                        print('critical error, exiting')
+                        return None
+
+                    if 'Retry-After' in r.headers:
+                        sleepFor = int(r.headers['Retry-After']) + 1
+                    else:
+                        sleepFor = 5
+
+                    print("Too many requests... recursively trying again, in ", sleepFor)
+                    
+                    await asyncio.sleep(sleepFor)
+                    return await self.fetch_json_from_URL(URL, params, name, depth + 1)
+
+                if r.status != 200:
+                    errorLog = open('spotifyRequestErrorLog.txt', 'a')
+
+                    errorMessage = "error, return status is:" + str(r.status)
+                    if 'message' in r:
+                        errorMessage += ", r.message = " + r.message
+                    
+                    errorLog.write(errorMessage, 'a')
+                    errorLog.close()
+                    return None
+
                 resp_dict = json.loads(await r.text())
                 return resp_dict
 
@@ -476,3 +523,4 @@ class SpotifyAPI:
             print(self.REQUEST_EXCEPTION_MSG + name, URL, ":", e)
             print("\nrequest status: ", r.status, "\n")
             print("\nrequest reason: ", r.reason, "\n")
+            return None
