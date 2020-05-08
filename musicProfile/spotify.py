@@ -19,10 +19,15 @@ from time import sleep
 import traceback
 import sys
 
+import random
+
 
 def get_spotify_music_profile(request):
     spotifyAPI = SpotifyAPI(request)
     try:
+        #if random.random() < 1:
+        #    raise Exception('yo')
+
         music_profile = spotifyAPI.get_music_profile()
         return music_profile
     except Exception as e:
@@ -47,6 +52,8 @@ class SpotifyAPI:
     MAX_PLAYLISTS = 100
 
     SHOW_ACCESS = False
+    SAVE_PROFILE_AS_CSV = True
+
 
     USER_PLAYLISTS_ONLY = True # don't change unless you want playlists I follow to also be included
 
@@ -77,6 +84,11 @@ class SpotifyAPI:
             self.tracks_df = self.tracks_df.head(self.MAX_TRACKS_RETURNED)
 
         print(f'returning { self.artists_df.shape[0] } artists and { self.tracks_df.shape[0] } tracks')
+
+
+        if self.SAVE_PROFILE_AS_CSV:
+            self.artists_df.to_csv('artists_df.csv')
+            self.tracks_df.to_csv('tracks_df.csv')
 
         artists_json = self.get_artists_json(self.artists_df)
         tracks_json = self.get_tracks_json(self.tracks_df)
@@ -154,7 +166,7 @@ class SpotifyAPI:
         # takes 320 over 300 for example. some artists have 300 px images instead of 320 (don't know why)
         artists_df_transform['image_size'] = 'min'
         artists_df_transform['image_url'] = 'first'
-        
+
         def agg_track_list(tracks):         # set to remove duplicates
             track_list = [x for x in list(set(tracks)) if str(x) != 'nan']
             return track_list
@@ -335,6 +347,7 @@ class SpotifyAPI:
     async def get_all_playlists(self):
         playlists = await self.fetch_playlists()
         self.track_columns.append("playlist")
+        self.artist_columns.append("playlist")
 
         tracks = []
         artists = []
@@ -370,6 +383,7 @@ class SpotifyAPI:
 
             artists_df = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'id']])
             artists_df = artists_df[['id', 'name', 'track.id']]
+            artists_df['playlist'] = True
             all_artists.append(artists_df)
 
             tracks_df = json_normalize(data = resp_dict['items'], record_path=['track', 'album', 'images'], meta=[['track', 'name'], ['track', 'id'], ['track', 'uri']])
