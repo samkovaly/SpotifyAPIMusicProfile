@@ -165,7 +165,7 @@ class SpotifyAPI:
             artists_df_transform[column] = 'max'
         # takes 320 over 300 for example. some artists have 300 px images instead of 320 (don't know why)
         artists_df_transform['image_size'] = 'min'
-        artists_df_transform['image_url'] = 'first'
+        artists_df_transform['image'] = 'first'
 
         def agg_track_list(tracks):         # set to remove duplicates
             track_list = [x for x in list(set(tracks)) if str(x) != 'nan']
@@ -233,6 +233,7 @@ class SpotifyAPI:
     async def fetch_top_artists(self, time_range):
         print('fetching top artists... ', time_range)
         self.artist_columns.append("top_artists_" + time_range)
+        self.artist_columns.append("top_artists_" + time_range + "_ranking")
         offsets = [0, 49]
         top_artists = []
 
@@ -249,7 +250,23 @@ class SpotifyAPI:
 
                 top_artists.append(artists_df)
 
-        self.artists_dataframes.append(pd.concat(top_artists))
+
+        artists_df = pd.concat(top_artists)
+
+        #artists_df.insert(len(artists_df.columns), time_range+'_ranking', range(1, 1+len(artists_df)))
+        current_ranking = 0
+        rankings = []
+        seen_id = set()
+        for index, row in artists_df.iterrows():
+            if row['id'] not in seen_id:
+                current_ranking += 1
+                seen_id.add(row['id'])
+            rankings.append(current_ranking)
+
+        artists_df["top_artists_" + time_range + "_ranking"] = rankings
+
+
+        self.artists_dataframes.append(artists_df)
         
 
     async def fetch_top_tracks(self, time_range):
@@ -438,7 +455,7 @@ class SpotifyAPI:
 
 
     ''' json_data must be a JSON array of full artist objects. Returns a dataframe of all the objects with
-        columns: id, name, genres, image_url, image_size'''
+        columns: id, name, genres, image, image_size'''
     def extract_full_artist_from_json(self, json_data):
 
         artists_genres = json_normalize(data = json_data, record_path='genres', meta=['id', 'name'])
@@ -454,7 +471,7 @@ class SpotifyAPI:
 
         # genres columns defaults to '0' since we are extracting an array in the record_path ('genres'),
         # an array of strigs, not objects
-        artists_df = artists_df.rename(columns={0: 'genres', 'url': 'image_url', 'width': 'image_size'})
+        artists_df = artists_df.rename(columns={0: 'genres', 'url': 'image', 'width': 'image_size'})
         return artists_df
 
 
