@@ -70,12 +70,11 @@ class SpotifyAPI:
         self.artists_dataframes = []
         self.tracks_dataframes = []
 
-        self.artist_image_size_min = 100
+        #self.artist_image_size_min = 100
 
 
     def get_music_profile(self):
         asyncio.run(self.collect_artists_and_tracks_dataframes())
-        #self.artists_df.drop(columns=['genres', 'tracks', 'image_size'], inplace=True)
         
         print("converting dataframes to JSON...")
 
@@ -147,10 +146,9 @@ class SpotifyAPI:
         artists_df = reduce(lambda left, right: pd.merge(left, right, how="outer"), self.artists_dataframes)
         artists_df = artists_df.drop_duplicates()
 
-
         # here, i fill in missing values
         # with a second gather operation
-        artists_missing = artists_df[artists_df['image_size'].isnull()]
+        artists_missing = artists_df[artists_df['image'].isnull()]
 
         artist_missing_list = artists_missing['id'].tolist()
         artist_missing_list = list(set(artist_missing_list))
@@ -160,12 +158,18 @@ class SpotifyAPI:
         artists_df = artists_df.drop_duplicates()
 
 
+        artists_df['smallImage'] = artists_df['image']
+        artists_df['bigImage'] = artists_df['image']
+        artists_df.drop('image', axis = 1)
+
+
         artists_df_transform = {}
         for column in self.artist_columns:
             artists_df_transform[column] = 'max'
-        # takes 320 over 300 for example. some artists have 300 px images instead of 320 (don't know why)
-        artists_df_transform['image_size'] = 'min'
-        artists_df_transform['image'] = 'first'
+
+        artists_df_transform['bigImage'] = 'first'
+        artists_df_transform['smallImage'] = 'last'
+        artists_df_transform['uri'] = 'first'
 
         def agg_track_list(tracks):         # set to remove duplicates
             track_list = [x for x in list(set(tracks)) if str(x) != 'nan']
@@ -443,8 +447,12 @@ class SpotifyAPI:
         try:
             artist_df = self.extract_full_artist_from_json(resp_dict['artists'])
         except Exception as e:
-            print(f"artist IDs starting with {IDs[0]} has returned with resp_dict of:{resp_dict}")
+            print(f"artist IDs starting with {IDs[0]} has returned with resp_dict of:{resp_dict['artists'][0]}")
             print('exception in fetch_full_artists, resp_dict is messed up:', e)
+            with open('errorArtists.json', 'w') as outfile:
+                #parsed = json.loads(resp_dict['artists'])
+                #print(json.dumps(parsed, indent=4, sort_keys=True))
+                json.dump(resp_dict['artists'], outfile)
 
 
         return artist_df
@@ -457,21 +465,26 @@ class SpotifyAPI:
     ''' json_data must be a JSON array of full artist objects. Returns a dataframe of all the objects with
         columns: id, name, genres, image, image_size'''
     def extract_full_artist_from_json(self, json_data):
+        json_data_no_none = []
+        for val in json_data:
+            if val != None:
+                json_data_no_none.append(val)
 
-        artists_genres = json_normalize(data = json_data, record_path='genres', meta=['id', 'name'])
-        artists_images = json_normalize(data = json_data, record_path='images', meta=['id', 'name'])
+
+        artists_genres = json_normalize(data = json_data_no_none, record_path='genres', meta=['id', 'name', 'uri'])
+        artists_images = json_normalize(data = json_data_no_none, record_path='images', meta=['id', 'name', 'uri'])
 
         artists_df = pd.merge(artists_genres, artists_images, how="outer")
 
         # filter out other sizes that we don't want
-        artists_df = artists_df[artists_df.height >= self.artist_image_size_min]
+        #artists_df = artists_df[artists_df.height >= self.artist_image_size_min]
 
         # don't need height and width, only size since they are the same
         artists_df = artists_df.drop(['height'], axis=1)
-
+        artists_df = artists_df.drop(['width'], axis=1)
         # genres columns defaults to '0' since we are extracting an array in the record_path ('genres'),
         # an array of strigs, not objects
-        artists_df = artists_df.rename(columns={0: 'genres', 'url': 'image', 'width': 'image_size'})
+        artists_df = artists_df.rename(columns={0: 'genres', 'url': 'image'})
         return artists_df
 
 
@@ -551,7 +564,7 @@ class SpotifyAPI:
                 return resp_dict
 
         except Exception as e:
-            print(self.REQUEST_EXCEPTION_MSG + name, URL, ":", e)
+            print("\nERROR:\n", self.REQUEST_EXCEPTION_MSG + name, URL, ":", e, '\n')
             print("\nrequest status: ", r.status, "\n")
             print("\nrequest reason: ", r.reason, "\n")
             return None

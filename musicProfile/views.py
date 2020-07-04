@@ -5,8 +5,8 @@ from django.http import JsonResponse
 import json
 
 from django.contrib.auth.models import User
-from musicProfile.models import UserProfile
-from musicProfile.serializers import UserProfileSerializer, UserSerializer
+from musicProfile.models import UserProfile, InterestedConcert
+from musicProfile.serializers import UserProfileSerializer, UserSerializer, InterestedConcertSerializer
 
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 
@@ -57,7 +57,11 @@ class APICredentials(APIView):
 
 
 
-
+def makeStatusResp(msg, status):
+    return {
+        'message': msg,
+        'status': status,
+    }
 
 def get_password_from_refresh_token(refresh_token):
     return refresh_token[0:PASSWORD_LENGTH]
@@ -83,23 +87,17 @@ class UserRegister(APIView):
         access_token = request.data.get("access_token")
         refresh_token = request.data.get("refresh_token")
 
-        '''
-        print('register')
-        if username:
-            print(username)
-        if access_token:
-            print(access_token[0:10])
-        if refresh_token:
-            print(refresh_token[0:10])
-        '''
-
         # validate fields
         if username is None or access_token is None or refresh_token is None:
-            return Response('Please provide: username, valid access_token and valid refresh_token',
-                            status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(makeStatusResp('Please provide: username, valid access_token and valid refresh_token', 
+            status.HTTP_400_BAD_REQUEST))
+            #return Response('Please provide: username, valid access_token and valid refresh_token',
+            #                status=status.HTTP_400_BAD_REQUEST)
 
         if fetch_user_id(access_token) != username:
-            return Response("spotify access_token failed to match fetched username", status=status.HTTP_403_FORBIDDEN)
+            return JsonResponse(makeStatusResp('spotify access_token failed to match fetched username', 
+            status.HTTP_403_FORBIDDEN))
+            #return Response("spotify access_token failed to match fetched username", status=status.HTTP_403_FORBIDDEN)
 
         password = get_password_from_refresh_token(refresh_token)
         
@@ -109,12 +107,14 @@ class UserRegister(APIView):
             save_refresh_token_to_user(user, refresh_token)
             user.set_password(password)
             user.save()
-            return Response("user already exists.. updated the refresh token", status=status.HTTP_201_CREATED)
+            return JsonResponse(makeStatusResp('user already exists.. updated the refresh token', status.HTTP_201_CREATED))
+            #return Response("user already exists.. updated the refresh token", status=status.HTTP_201_CREATED)
 
         else:
             user = User.objects.create_user(username=username, password=password)
             save_refresh_token_to_user(user, refresh_token)
-            return Response("User created successfully", status=status.HTTP_201_CREATED)
+            return JsonResponse(makeStatusResp('User created successfully', status.HTTP_201_CREATED))
+            #return Response("User created successfully", status=status.HTTP_201_CREATED)
 
 class UserLogin(APIView):
     permission_classes = (AllowAny,)
@@ -124,14 +124,16 @@ class UserLogin(APIView):
         refresh_token = request.data.get("refresh_token")
 
         if username is None or refresh_token is None:
-            return Response('Please provide both username and refresh_token', status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(makeStatusResp('Please provide both username and refresh_token', status.HTTP_400_BAD_REQUEST))
+            #return Response('Please provide both username and refresh_token', status=status.HTTP_400_BAD_REQUEST)
 
         user = authenticate(username=username, password=get_password_from_refresh_token(refresh_token))
         if not user:
-            return Response('Invalid Credentials', status=status.HTTP_404_NOT_FOUND)
+            #return Response('Invalid Credentials', status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse(makeStatusResp('Invalid Credentials', status.HTTP_404_NOT_FOUND))
         
         token, _ = Token.objects.get_or_create(user=user)
-        return Response({'token': token.key}, status=status.HTTP_200_OK)
+        return JsonResponse({'token': token.key})
 
 
 
@@ -159,7 +161,8 @@ class UserDetail(APIView):
     def get(self, request, username, format=None):
         user = get_user(request, username)
         user_serializer = UserSerializer(user)
-        return Response(user_serializer.data)
+        #return Response(user_serializer.data)
+        return JsonResponse(user_serializer.data)
 
 # requried user's own token or the master token
 class UserProfileDetail(APIView):
@@ -173,7 +176,8 @@ class UserProfileDetail(APIView):
         profile = UserProfile.objects.get(user=user)
         profile_serializer = UserProfileSerializer(profile)
         print('returning:', profile_serializer.data['music_profile_JSON'][0:500], '...\n')
-        return Response(profile_serializer.data)
+        #return Response(profile_serializer.data)
+        return JsonResponse(profile_serializer.data)
 
     # refresh user music profile
     # needs master toke in header and a valid access token passed as data to work.
@@ -184,14 +188,14 @@ class UserProfileDetail(APIView):
 
         access_token = request.data.get('access_token')
         if not access_token:
-            return Response('Please provide a valid access token', status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(makeStatusResp('Please provide a valid access token', status.HTTP_400_BAD_REQUEST))
+            #return Response('Please provide a valid access token', status=status.HTTP_400_BAD_REQUEST)
 
         new_music_profile = get_spotify_music_profile(access_token)
         new_music_profile_JSON = json.dumps(new_music_profile)
         print('\n')
 
         if 'error' in new_music_profile:
-
             return JsonResponse(new_music_profile)
         else:
             profile.music_profile_JSON = new_music_profile_JSON
@@ -199,3 +203,45 @@ class UserProfileDetail(APIView):
 
             profile_serializer = UserProfileSerializer(profile)
             return Response(profile_serializer.data)
+
+
+class InterestedConcerts(APIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    # get user's interested concerts (list of strings)
+    def get(self, request, username, format=None):
+        print('\ngetting concert IDs..')
+        user = get_user(request, username)
+        concerts = InterestedConcert.objects.filter(user=user)
+        concerts_serializer = InterestedConcertSerializer(concerts, many=True)
+        
+        print(concerts_serializer.data)
+        return JsonResponse({"data": concerts_serializer.data})
+
+
+    def post(self, request, username, format=None):
+        print('posting new ID bro')
+        user = get_user(request, username)
+        concert_seatgeek_id = request.data.get('concert_seatgeek_id')
+
+        if InterestedConcert.objects.filter(user=user, concert_seatgeek_id=concert_seatgeek_id).exists():
+            return JsonResponse(makeStatusResp('interestedConcert already exists', status.HTTP_400_BAD_REQUEST))
+
+        concert = InterestedConcert.objects.create(user = user, concert_seatgeek_id = concert_seatgeek_id)
+        concert.save()
+        concerts_serializer = InterestedConcertSerializer(concert)
+        
+        print('returning:', concerts_serializer.data['concert_seatgeek_id'], '...\n')
+        #return Response(concerts_serializer.data)
+        return JsonResponse(concerts_serializer.data)
+
+class InterestedConcertsDetail(APIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def delete(self, request, username, concert_id, format=None):
+        user = get_user(request, username)
+        InterestedConcert.objects.get(user=user, concert_seatgeek_id=concert_id).delete()
+        #return Response('Deleted', status=status.HTTP_200_OK)
+        return JsonResponse(makeStatusResp('Deleted', status.HTTP_200_OK))

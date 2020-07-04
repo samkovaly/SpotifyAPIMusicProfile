@@ -8,6 +8,7 @@ from .spotify import get_spotify_music_profile
 from musicProfile.views import SpotifyAppCredentials, APICredentials
 from musicProfile.views import UserRegister, UserLogin
 from musicProfile.views import UserDetail, UserProfileDetail
+from musicProfile.views import InterestedConcerts, InterestedConcertsDetail
 
 
 urlpatterns = [
@@ -17,6 +18,8 @@ urlpatterns = [
     path('login/', UserLogin.as_view()),
     path('users/<str:username>', UserDetail.as_view()),
     path('users/music_profile/<str:username>', UserProfileDetail.as_view()),
+    path('users/interested_concerts/<str:username>', InterestedConcerts.as_view()),
+    path('users/interested_concerts/<str:username>/<str:concert_id>', InterestedConcertsDetail.as_view()),
 ]
 
 

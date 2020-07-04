@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 
-
 class UserProfile(models.Model):
     music_profile_JSON = models.TextField(blank=True)
     refresh_token = models.CharField(max_length=256)
@@ -15,6 +14,12 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return self.user.username + "'s profile"
+
+
+
+class InterestedConcert(models.Model):
+    user = models.ForeignKey(User, on_delete = models.CASCADE)
+    concert_seatgeek_id = models.CharField(max_length=256)
 
 
 

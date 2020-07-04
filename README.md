@@ -8,23 +8,21 @@ This data is returned to whoever requested it. It is meant for my front end app,
 Technologies include: Django & Django rest framework
 
 
+## DEVELOPMENT SETUP
 1. pull .git
 2. cd into folder
 3. run python -m venv venv
 4. run "venv/Scripts/activate"
 5. run "pip install -r requirements.txt"
-7. create local_secrets.py under spotifyAPIMusicProfile folder. It needs SECRET_KEY, DEBUG, ALLOWED_HOSTS, spotify_app_credentials_data and concert_events_API_keys defined
-
-DEVELOPMENT
-1. get local IP:
+6. using local_secrets_template.py, create local_secrets.py under spotifyAPIMusicProfile folder. It needs SECRET_KEY, DEBUG, ALLOWED_HOSTS (using LOCAL_IP) and SECRET_APP_KEY (any uuid key) defined and both spotify_app_credentials and API_credentials filled in.
+7. To get local IP:
     (Windows): run ipconfig on command prompt,
         under "wireless LAN adapter wifi", IPv4 Address.
-2. add IP to 'ALLOWED HOSTS' in local_secrets.py
-3. when running, use "python manage.py runserver {IP}:8000"
-4. when react-native app is fetching this backend, must fetch this IP.
-
-
-8. run "python manage.py migrate"
-9. run "python manage.py createsuperuser"
-10. run "python manage.py runserver {LOCAL_IP}"
-11. test by going to .../admin and logging in
+8. add LOCAL_IP to 'ALLOWED HOSTS' in local_secrets.py
+9. run "python manage.py makemigrations musicProfile"
+10. run "python manage.py migrate"
+11. run "python manage.py createsuperuser"
+12. run "python manage.py runserver {LOCAL_IP}:8000"
+13. test by going to {LOCAL_IP}:8000/admin and logging in
+14. On front-end, add localDevVariables.js under the main folder and export APIMasterKey = SECRET_APP_KEY and localDevIP = '{LOCAL_IP}:8000'
+    so that all front end requests look like: http://{LOCAL_IP}:8000/api/...

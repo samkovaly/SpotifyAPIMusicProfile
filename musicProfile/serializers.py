@@ -1,9 +1,14 @@
 from rest_framework import serializers
-from musicProfile.models import UserProfile
+from musicProfile.models import UserProfile, InterestedConcert
 #from musicProfile.models import Account
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
+
+class InterestedConcertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterestedConcert
+        fields = ['concert_seatgeek_id', 'user']
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,9 +19,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     userprofile = UserProfileSerializer(required = False)
+    Interestedconcert = InterestedConcertSerializer(required = False)
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'password', 'userprofile')
+        fields = ('id', 'username', 'password', 'userprofile', 'interestedconcert')
         extra_kwargs = {'password': {'write_only': True, 'required': True}}
 
     def create(self, validated_data):

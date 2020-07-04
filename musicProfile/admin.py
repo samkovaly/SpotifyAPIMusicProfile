@@ -3,7 +3,7 @@ from django.contrib import admin
 from musicProfile.models import UserProfile
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-
+from musicProfile.models import InterestedConcert
 #admin.site.register(UserProfile)
 
 
@@ -17,3 +17,4 @@ class MyUserAdmin(BaseUserAdmin):
 
 admin.site.unregister(User)
 admin.site.register(User, MyUserAdmin)
+admin.site.register(InterestedConcert)
