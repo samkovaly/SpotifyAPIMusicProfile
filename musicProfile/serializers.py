@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from musicProfile.models import UserProfile, InterestedConcert
-#from musicProfile.models import Account
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
@@ -30,22 +29,3 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         Token.objects.create(user=user)
         return user
-
-
-'''
-class AccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Account
-        fields = ['username', 'password', 'music_profile', 'date_joined']
-        #extra_kwargs = {'password': {'write_only': True, 'required': True}}
-
-        def create(self, validated_data):
-            print('looollolol')
-            user = Account.objects.create(
-                email=validated_data['email'],
-                username=validated_data['username'],
-                password = make_password(validated_data['password'])
-            )
-            print('hey there, ', user)
-            return user
-'''

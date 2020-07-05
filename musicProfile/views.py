@@ -32,9 +32,7 @@ from django.contrib.auth import authenticate
 PASSWORD_LENGTH = 20
 
 
-
-
-
+# customer permission function for a simple auth token
 class HasAppKey(BasePermission):
     def has_permission(self, request, view):
         if "HTTP_AUTHORIZATION" in request.META:
@@ -42,37 +40,40 @@ class HasAppKey(BasePermission):
                 return True
         return False
 
-# requires admin's token (coming from the app)
+# requires the secret app token
 class SpotifyAppCredentials(APIView):
     permission_classes = (HasAppKey,)
     def get(self, request, format=None):
         return JsonResponse(spotify_app_credentials)
 
-# requires admin's token (coming from the app)
+# requires the secret app token
 class APICredentials(APIView):
     permission_classes = (HasAppKey,)
     def get(self, request, format=None):
         return JsonResponse(API_credentials)
 
-
-
-
+# helper function to make status resposes
 def makeStatusResp(msg, status):
     return {
         'message': msg,
         'status': status,
     }
 
+# truncate a long refresh token into an automatic password for the user
 def get_password_from_refresh_token(refresh_token):
     return refresh_token[0:PASSWORD_LENGTH]
 
+# update the user's refresh token
 def save_refresh_token_to_user(user, refresh_token):
     profile = UserProfile.objects.get(user=user)
     profile.refresh_token = refresh_token
     profile.save()
 
-# admin can get all users or make a new user
-# requires admin's token (coming from the app)
+# Anyone can make a new user provided they have:
+#   spotify username
+#   spotify access token that has recently been aquired
+#   spotify refresh token that works
+#   and all these must match to the same spotify account
 class UserRegister(APIView):
     permission_classes = (AllowAny,)
 
@@ -81,7 +82,6 @@ class UserRegister(APIView):
     # if user already exists, must verify access_token is correct, 
     #   then update the refresh_token and update the password
     def post(self, request, format=None):
-        #print('POST api/users, data:', request.data)
 
         username = request.data.get("username")
         access_token = request.data.get("access_token")
@@ -91,13 +91,11 @@ class UserRegister(APIView):
         if username is None or access_token is None or refresh_token is None:
             return JsonResponse(makeStatusResp('Please provide: username, valid access_token and valid refresh_token', 
             status.HTTP_400_BAD_REQUEST))
-            #return Response('Please provide: username, valid access_token and valid refresh_token',
-            #                status=status.HTTP_400_BAD_REQUEST)
+
 
         if fetch_user_id(access_token) != username:
             return JsonResponse(makeStatusResp('spotify access_token failed to match fetched username', 
             status.HTTP_403_FORBIDDEN))
-            #return Response("spotify access_token failed to match fetched username", status=status.HTTP_403_FORBIDDEN)
 
         password = get_password_from_refresh_token(refresh_token)
         
@@ -108,36 +106,32 @@ class UserRegister(APIView):
             user.set_password(password)
             user.save()
             return JsonResponse(makeStatusResp('user already exists.. updated the refresh token', status.HTTP_201_CREATED))
-            #return Response("user already exists.. updated the refresh token", status=status.HTTP_201_CREATED)
 
         else:
             user = User.objects.create_user(username=username, password=password)
             save_refresh_token_to_user(user, refresh_token)
             return JsonResponse(makeStatusResp('User created successfully', status.HTTP_201_CREATED))
-            #return Response("User created successfully", status=status.HTTP_201_CREATED)
 
 class UserLogin(APIView):
     permission_classes = (AllowAny,)
 
+    # standard login to get an auth token but password is generated from the refresh token provided
     def post(self, request):
         username = request.data.get("username")
         refresh_token = request.data.get("refresh_token")
 
         if username is None or refresh_token is None:
             return JsonResponse(makeStatusResp('Please provide both username and refresh_token', status.HTTP_400_BAD_REQUEST))
-            #return Response('Please provide both username and refresh_token', status=status.HTTP_400_BAD_REQUEST)
 
         user = authenticate(username=username, password=get_password_from_refresh_token(refresh_token))
         if not user:
-            #return Response('Invalid Credentials', status=status.HTTP_404_NOT_FOUND)
             return JsonResponse(makeStatusResp('Invalid Credentials', status.HTTP_404_NOT_FOUND))
         
         token, _ = Token.objects.get_or_create(user=user)
         return JsonResponse({'token': token.key})
 
 
-
-# requried user's own token
+# does request username match the user's provided tokens
 def get_user(request, want_username):
     if request.user.is_authenticated:
         auth_username = request.user.username
@@ -161,7 +155,6 @@ class UserDetail(APIView):
     def get(self, request, username, format=None):
         user = get_user(request, username)
         user_serializer = UserSerializer(user)
-        #return Response(user_serializer.data)
         return JsonResponse(user_serializer.data)
 
 # requried user's own token or the master token
@@ -175,8 +168,6 @@ class UserProfileDetail(APIView):
         user = get_user(request, username)
         profile = UserProfile.objects.get(user=user)
         profile_serializer = UserProfileSerializer(profile)
-        print('returning:', profile_serializer.data['music_profile_JSON'][0:500], '...\n')
-        #return Response(profile_serializer.data)
         return JsonResponse(profile_serializer.data)
 
     # refresh user music profile
@@ -189,7 +180,6 @@ class UserProfileDetail(APIView):
         access_token = request.data.get('access_token')
         if not access_token:
             return JsonResponse(makeStatusResp('Please provide a valid access token', status.HTTP_400_BAD_REQUEST))
-            #return Response('Please provide a valid access token', status=status.HTTP_400_BAD_REQUEST)
 
         new_music_profile = get_spotify_music_profile(access_token)
         new_music_profile_JSON = json.dumps(new_music_profile)
@@ -219,9 +209,8 @@ class InterestedConcerts(APIView):
         print(concerts_serializer.data)
         return JsonResponse({"data": concerts_serializer.data})
 
-
+    # post a new concert id to the interestedConcerts table
     def post(self, request, username, format=None):
-        print('posting new ID bro')
         user = get_user(request, username)
         concert_seatgeek_id = request.data.get('concert_seatgeek_id')
 
@@ -236,10 +225,11 @@ class InterestedConcerts(APIView):
         #return Response(concerts_serializer.data)
         return JsonResponse(concerts_serializer.data)
 
+
 class InterestedConcertsDetail(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
-
+    # standard DEL of interested concert ID resource
     def delete(self, request, username, concert_id, format=None):
         user = get_user(request, username)
         InterestedConcert.objects.get(user=user, concert_seatgeek_id=concert_id).delete()

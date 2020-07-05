@@ -25,9 +25,6 @@ import random
 def get_spotify_music_profile(request):
     spotifyAPI = SpotifyAPI(request)
     try:
-        #if random.random() < 1:
-        #    raise Exception('yo')
-
         music_profile = spotifyAPI.get_music_profile()
         return music_profile
     except Exception as e:
@@ -51,26 +48,20 @@ class SpotifyAPI:
     REDUCE_PLAYLISTS = True
     MAX_PLAYLISTS = 100
 
-    SHOW_ACCESS = False
     SAVE_PROFILE_AS_CSV = True
 
 
-    USER_PLAYLISTS_ONLY = True # don't change unless you want playlists I follow to also be included
+    USER_PLAYLISTS_ONLY = True # don't change unless you want playlists a user follows to also be included
 
 
     def __init__(self, access_token):
         self.header = {'Authorization' : "Bearer "+access_token}
         self.user_id = self.fetch_user_id()
 
-        if self.SHOW_ACCESS:
-            print('access token', access_token)
-
         self.artist_columns = []
         self.track_columns = []
         self.artists_dataframes = []
         self.tracks_dataframes = []
-
-        #self.artist_image_size_min = 100
 
 
     def get_music_profile(self):
@@ -113,10 +104,6 @@ class SpotifyAPI:
 
 
     def get_artists_json(self, artists_df):
-        #def get_tracks_json(row):
-        #    return json.dumps(list(row['tracks']))
-        #artists_df['tracks_json'] = artists_df.apply(get_tracks_json, axis=1)
-
         return artists_df.to_json(orient='records')
 
     def get_tracks_json(self, tracks_df):
@@ -189,8 +176,6 @@ class SpotifyAPI:
         artists_df.rename(columns = {'track.id': 'tracks'}, inplace = True)
         artists_df[self.artist_columns] = artists_df[self.artist_columns].fillna(value=False)
         artists_df.reset_index(level=['id', 'name'], inplace = True)
-        #artists_df = artists_df.reset_index()
-
 
         # add artist's tracks_length
         def get_tracks_len(row):
@@ -229,9 +214,6 @@ class SpotifyAPI:
         tracks_df.reset_index(level=['id', 'name', 'uri'], inplace = True)
 
         return tracks_df
-
-
-
 
 
     async def fetch_top_artists(self, time_range):
@@ -298,8 +280,6 @@ class SpotifyAPI:
 
         self.artists_dataframes.append(pd.concat(all_artists))
         self.tracks_dataframes.append(pd.concat(all_tracks))
-        #self.tracks_dataframes.append(pd.concat(all_tracks).drop_duplicates(subset = 'id'))
-
 
 
     async def fetch_followed_artists(self):
@@ -343,7 +323,6 @@ class SpotifyAPI:
 
         self.artists_dataframes.append(pd.concat(all_artists))
         self.tracks_dataframes.append(pd.concat(all_tracks))
-        #self.tracks_dataframes.append(pd.concat(all_tracks).drop_duplicates(subset = 'id'))
 
 
     async def fetch_playlists(self):
@@ -393,8 +372,6 @@ class SpotifyAPI:
 
 
     async def fetch_playlist(self, ID):
-        #print('fetchin_playlist({})'.format(ID))
-
         next = "https://api.spotify.com/v1/playlists/"+ID+"/tracks?limit=100&offset=0"
         all_artists = []
         all_tracks = []
@@ -421,7 +398,6 @@ class SpotifyAPI:
 
 
 
-
     ''' takes a list of artist IDs, fetches the full artist objects from spotify using these IDs (50 at a time max),
         calls extract_full_artist_from_json on the returns and returns a dataframe with all the columns needed
         for the mobile app '''
@@ -436,8 +412,6 @@ class SpotifyAPI:
 
     ''' IDs should be of length 50 or less '''
     async def fetch_full_artists(self, IDs):
-        #print(f'fetching full artist details for {len(IDs)} artists')
-        #print(f"  first aritst ID is {IDs[0]}")
         URL = "https://api.spotify.com/v1/artists"
 
         resp_dict = await self.fetch_json_from_URL(
@@ -450,8 +424,6 @@ class SpotifyAPI:
             print(f"artist IDs starting with {IDs[0]} has returned with resp_dict of:{resp_dict['artists'][0]}")
             print('exception in fetch_full_artists, resp_dict is messed up:', e)
             with open('errorArtists.json', 'w') as outfile:
-                #parsed = json.loads(resp_dict['artists'])
-                #print(json.dumps(parsed, indent=4, sort_keys=True))
                 json.dump(resp_dict['artists'], outfile)
 
 
@@ -477,7 +449,6 @@ class SpotifyAPI:
         artists_df = pd.merge(artists_genres, artists_images, how="outer")
 
         # filter out other sizes that we don't want
-        #artists_df = artists_df[artists_df.height >= self.artist_image_size_min]
 
         # don't need height and width, only size since they are the same
         artists_df = artists_df.drop(['height'], axis=1)
@@ -526,7 +497,7 @@ class SpotifyAPI:
 
 
     ''' basic fetch json from URL function implemented with aiohttp async. (need asyncio gath to call). '''
-    async def fetch_json_from_URL(self, URL, params = None, name = "", depth = 0):
+    async def fetch_json_from_URL(self, URL, params = None, name = "", depth = 0):      
         r = None
         try:
             async with aiohttp.ClientSession(raise_for_status=False) as session:
