@@ -3,11 +3,13 @@
 db.sqlite3
 
 local_secrets.py
+production_secrets.py
+spotifyRequestErrorLog.txt
 
 
 *.csv
 *.json
-musicProfile/migrations
+musicProfile/migrations/
 
 __pycache__/
 /static

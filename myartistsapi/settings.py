@@ -3,11 +3,18 @@ import os
 import sys
 sys.path.append("..")
 
-try:
-    from local_secrets import *
-except ImportError:
-    print("no local settings found")
+PRODUCTION = True
 
+if PRODUCTION:
+    try:
+        from production_secrets import *
+    except ImportError:
+        print("no productions settings found")
+else:
+    try:
+        from local_secrets import *
+    except ImportError:
+        print("no local settings found")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -16,8 +23,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
 }
-
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -69,12 +74,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myartistsapi.wsgi.application'
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {

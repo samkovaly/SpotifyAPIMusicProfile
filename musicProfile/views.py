@@ -22,8 +22,9 @@ from musicProfile.spotify import get_spotify_music_profile
 
 import sys
 sys.path.append("..")
-from local_secrets import spotify_app_credentials, API_credentials
-from local_secrets import SECRET_APP_KEY
+
+from myartistsapi.settings import spotify_app_credentials, API_credentials
+from myartistsapi.settings import SECRET_APP_KEY
 
 from musicProfile.spotify_auth_functionality import fetch_user_id
 from django.contrib.auth import authenticate
