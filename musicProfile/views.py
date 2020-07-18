@@ -29,6 +29,7 @@ from myartistsapi.settings import SECRET_APP_KEY
 from musicProfile.spotify_auth_functionality import fetch_user_id
 from django.contrib.auth import authenticate
 
+from django.shortcuts import get_object_or_404
 
 PASSWORD_LENGTH = 20
 
@@ -167,7 +168,8 @@ class UserProfileDetail(APIView):
     def get(self, request, username, format=None):
         print('\ngetting music profile...')
         user = get_user(request, username)
-        profile = UserProfile.objects.get(user=user)
+        profile = get_object_or_404(UserProfile, user=user)
+        #profile = UserProfile.objects.get(user=user)
         profile_serializer = UserProfileSerializer(profile)
         return JsonResponse(profile_serializer.data)
 
