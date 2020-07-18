@@ -21,9 +21,10 @@ Technologies include: Django & Django rest framework
 11. To get local IP:
     (Windows) run ipconfig on command prompt,
         under "wireless LAN adapter wifi", IPv4 Address.
-12. run "python manage.py makemigrations musicProfile"
-13. run "python manage.py migrate"
-14. run "python manage.py createsuperuser"
-15. run "python manage.py runserver {LOCAL_IP}:8000"
-16. test by going to {LOCAL_IP}:8000/admin and logging in
+12. (for heroku deployment) run heroku config:set DISABLE_COLLECTSTATIC=1
+13. run "python manage.py makemigrations musicProfile"
+14. run "python manage.py migrate"
+15. run "python manage.py createsuperuser"
+16. run "python manage.py runserver {LOCAL_IP}:8000"
+17. test by going to {LOCAL_IP}:8000/admin and logging in
 17. in the  front-end code, add 'APIConfig.js' to the main directory and export API_IP='{LOCAL_IP}:8000' and API_MASTER_KEY=SECRET_APP_KEY that correlate to the backend. So that all front end requests look like: http://{LOCAL_IP}:8000/api/...

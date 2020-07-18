@@ -22,31 +22,29 @@ DATABASES = {
 # other than DATABASE_URL, all these other environmental variables must be set.
 # Each are unique to those who run this django app.
 
-SECRET_KEY = os.environ['MY-ARTISTS-SECRET-KEY']
-DEBUG = os.environ['MY-ARTISTS-DEBUG']
+SECRET_KEY = os.environ.get('MY-ARTISTS-SECRET-KEY')
+DEBUG = os.environ.get('MY-ARTISTS-DEBUG')
 
-ALLOWED_HOSTS = [os.environ['MY-ARTISTS-ALLOWED-HOST']]
+ALLOWED_HOSTS = [os.environ.get('MY-ARTISTS-ALLOWED-HOST')]
 
-SECRET_APP_KEY = os.environ['MY-ARTISTS-SECRET-APP-KEY']
+SECRET_APP_KEY = os.environ.get('MY-ARTISTS-SECRET-APP-KEY')
 
 # spotify keys for the app to use
 spotify_app_credentials = {
-    'clientId': os.environ['MY-ARTISTS-SPOTIFY-CLIENT-ID'],
-    'clientSecret': os.environ['MY-ARTISTS-SPOTIFY-CLIENT-SECRET'],
-    'redirectUri': os.environ['MY-ARTISTS-SPOTIFY-REDIRECT-URI'],
+    'clientId': os.environ.get('MY-ARTISTS-SPOTIFY-CLIENT-ID'),
+    'clientSecret': os.environ.get('MY-ARTISTS-SPOTIFY-CLIENT-SECRET'),
+    'redirectUri': os.environ.get('MY-ARTISTS-SPOTIFY-REDIRECT-URI'),
 }
 
 # third party API keys for the client app to use
 API_credentials = {
     "seatgeek": {
-        "client_id": os.environ['MY-ARTISTS-SEATGEEK-CLIENT-ID'],
+        "client_id": os.environ.get('MY-ARTISTS-SEATGEEK-CLIENT-ID'),
     },
     "googlePlacesAPI": {
-        "key": os.environ['MY-ARTISTS-GOOGLE-PLACES-KEY'],
+        "key": os.environ.get('MY-ARTISTS-GOOGLE-PLACES-KEY'),
     },
 }
-
-
 
 
 REST_FRAMEWORK = {

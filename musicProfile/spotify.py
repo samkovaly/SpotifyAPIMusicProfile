@@ -544,12 +544,6 @@ class SpotifyAPI:
 
     ''' basic fetch json from URL function implemented with aiohttp async. (need asyncio gath to call). '''
     async def fetch_json_from_URL(self, URL, params = None, name = "", depth = 0):
-        errorLog = open('spotifyRequestErrorLog.txt', 'a')
-        #print("URL ", URL)
-        errorLog.write('fetch_json_from_URL' + '\n')
-        errorLog.write('name' + name + '\n')
-        errorLog.write('URL' + URL + '\n')
-        errorLog.write('params' + str(params) + '\n')
 
         r = None
         try:
@@ -558,79 +552,34 @@ class SpotifyAPI:
             
                 # can try again after waiting for a bit, not really an error
                 if r.status == 429:
-                    errorLog.write('status = 429' + '\n')
-
                     if depth > 3:
-                        print('critical error, exiting')
+                        print('Error: recursion depth is 4')
                         return None
-
                     
                     if 'Retry-After' in r.headers:
                         sleepFor = int(r.headers['Retry-After']) + 1
                     else:
                         sleepFor = 5
 
-                    print("Too many requests... recursively trying again, in ", sleepFor, ', depth = ', depth)
-                    errorLog.write("Too many requests... recursively trying again, in " + str(sleepFor) + ', depth = ' + str(depth) + '\n')
-                    errorLog.close()
+                    print("status is 429, Too many requests... recursively trying again, in ", sleepFor, ', depth = ', depth)
 
                     await asyncio.sleep(sleepFor)
-                    print('awoken, trying again')
                     return await self.fetch_json_from_URL(URL, params, name, depth + 1)
                 
                 if r.status == 404:
                     # happens sometimes, try again
-                    
                     if depth > 3:
-                        print('critical error 404, exiting')
+                        print('Error: recursion depth is 4')
                         return None
                     
                     print('404... recursively trying again, depth = ', depth)
-                    errorLog.write("404... recursively trying again, depth = " + str(depth) + '\n')
-                    errorLog.close()
                     return await self.fetch_json_from_URL(URL, params, name, depth + 1)
 
-
-
                 if r.status != 200:
-                    errorLog.write('status != 200')
-
-                    errorLog.write("error, return status is:" + str(r.status))
-
-                    ok = await r.text()
-                    errorLog.write("okokok" + '\n' + str(r) + '\n' + ok + '\n')
-                    if r.message:
-                        errorLog.write(", r.message = " + str(r.message) + '\n')
-                    
-                    errorLog.close()
-                    return None
+                    print('ERROR: spotify return status: ', r.status)
 
                 resp_dict = json.loads(await r.text())
-
-                if resp_dict == None:
-                    errorLog.write('resp_dict is None')
-                    errorLog.write(str(r))
-                    errorLog.write(str(r.status))
-                    errorLog.write('url: ' + URL)
-                    errorLog.write('params: ' + str(params))
-                    errorLog.write('self.header: ' + str(self.header) + '\n')
-
-                    errorLog.close()
-
                 return resp_dict
 
         except Exception as e:
-            errorLog.write('Exception as e')
-
-            errorLog.write("\nERROR:\n" + self.REQUEST_EXCEPTION_MSG + name + '\n' + URL + ": " + str(e) + '\n')
-            errorLog.write('params: ' + str(params))
-            errorLog.write('self.header: ' + str(self.header) + '\n')
-
-            if r == None:
-                errorLog.write('r is None')
-            else:
-                errorLog.write("\nrequest status: " + str(r.status) + "\n")
-                errorLog.write("\nrequest reason: " + str(r.reason) + "\n")
-
-            errorLog.close()
-            return None
+            print("ERROR:\n" + self.REQUEST_EXCEPTION_MSG + name + '\n' + URL + ": " + str(e) + '\n') 
