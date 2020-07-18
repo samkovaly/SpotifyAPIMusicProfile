@@ -1,22 +1,52 @@
 
+import dj_database_url
+import django_heroku
+
+
+
 import os
 import sys
 sys.path.append("..")
 
-PRODUCTION = True
-
-if PRODUCTION:
-    try:
-        from production_secrets import *
-    except ImportError:
-        print("no productions settings found")
-else:
-    try:
-        from local_secrets import *
-    except ImportError:
-        print("no local settings found")
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# needs DATABASE_URL set - a postgres database url in the form of:
+# postgres://USER:PASSWORD@HOST:PORT/NAME
+DATABASES = {
+    'default': dj_database_url.config()
+}
+# other than DATABASE_URL, all these other environmental variables must be set.
+# Each are unique to those who run this django app.
+
+SECRET_KEY = os.environ['MY-ARTISTS-SECRET-KEY']
+DEBUG = os.environ['MY-ARTISTS-DEBUG']
+
+ALLOWED_HOSTS = [os.environ['MY-ARTISTS-ALLOWED-HOST']]
+
+SECRET_APP_KEY = os.environ['MY-ARTISTS-SECRET-APP-KEY']
+
+# spotify keys for the app to use
+spotify_app_credentials = {
+    'clientId': os.environ['MY-ARTISTS-SPOTIFY-CLIENT-ID'],
+    'clientSecret': os.environ['MY-ARTISTS-SPOTIFY-CLIENT-SECRET'],
+    'redirectUri': os.environ['MY-ARTISTS-SPOTIFY-REDIRECT-URI'],
+}
+
+# third party API keys for the client app to use
+API_credentials = {
+    "seatgeek": {
+        "client_id": os.environ['MY-ARTISTS-SEATGEEK-CLIENT-ID'],
+    },
+    "googlePlacesAPI": {
+        "key": os.environ['MY-ARTISTS-GOOGLE-PLACES-KEY'],
+    },
+}
+
+
 
 
 REST_FRAMEWORK = {
@@ -91,6 +121,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+#django_heroku.settings(locals())
+
 
 LANGUAGE_CODE = 'en-us'
 
@@ -101,6 +133,3 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
-
-
-STATIC_URL = '/static/'
