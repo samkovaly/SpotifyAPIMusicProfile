@@ -109,6 +109,9 @@ class SpotifyAPI:
 
 
     async def get_artists_master_df(self):
+        
+        if self.artists_dataframes == []:
+            return pd.DataFrame()
 
         #artists_df = self.artists_dataframes[0]
         #for df in self.artists_dataframes[1:]:
@@ -190,6 +193,10 @@ class SpotifyAPI:
 
 
     def get_tracks_master_df(self):
+        
+        if self.tracks_dataframes == []:
+            return pd.DataFrame()
+        
         tracks_df = reduce(lambda left, right: pd.merge(left, right, how="outer"), self.tracks_dataframes)
         tracks_df = tracks_df.drop_duplicates()
 

@@ -86,6 +86,7 @@ class UserRegister(APIView):
     def post(self, request, format=None):
 
         username = request.data.get("username")
+        email = request.data.get("email")
         access_token = request.data.get("access_token")
         refresh_token = request.data.get("refresh_token")
 
@@ -106,11 +107,17 @@ class UserRegister(APIView):
             user = User.objects.get(username = username)
             save_refresh_token_to_user(user, refresh_token)
             user.set_password(password)
+            if email:
+                user.email = email
             user.save()
             return JsonResponse(makeStatusResp('user already exists.. updated the refresh token', status.HTTP_201_CREATED))
 
         else:
-            user = User.objects.create_user(username=username, password=password)
+            if email:
+                user = User.objects.create_user(username=username, password=password, email=email)
+            else:
+                user = User.objects.create_user(username=username, password=password)
+
             save_refresh_token_to_user(user, refresh_token)
             return JsonResponse(makeStatusResp('User created successfully', status.HTTP_201_CREATED))
 
