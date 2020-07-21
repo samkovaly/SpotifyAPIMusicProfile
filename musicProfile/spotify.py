@@ -584,6 +584,9 @@ class SpotifyAPI:
 
                 if r.status != 200:
                     print('ERROR: spotify return status: ', r.status)
+                    print(r.status, ".. recursively trying again, depth = ", depth)
+                    await asyncio.sleep(1)
+                    return await self.fetch_json_from_URL(URL, params, name, depth + 1)
 
                 resp_dict = json.loads(await r.text())
                 return resp_dict
