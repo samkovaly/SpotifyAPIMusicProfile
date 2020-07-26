@@ -33,7 +33,6 @@ SECRET_APP_KEY = os.environ.get('MY-ARTISTS-SECRET-APP-KEY')
 spotify_app_credentials = {
     'clientId': os.environ.get('MY-ARTISTS-SPOTIFY-CLIENT-ID'),
     'clientSecret': os.environ.get('MY-ARTISTS-SPOTIFY-CLIENT-SECRET'),
-    'redirectUri': os.environ.get('MY-ARTISTS-SPOTIFY-REDIRECT-URI'),
 }
 
 # third party API keys for the client app to use
