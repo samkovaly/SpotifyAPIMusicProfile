@@ -40,7 +40,7 @@ def get_spotify_music_profile(request):
 
 class SpotifyAPI:
     REQUEST_EXCEPTION_MSG = "Spotify API Request Exception while fetching "
-    SAVE_PROFILE_AS_CSV = True
+    SAVE_PROFILE_AS_CSV = False
 
 
     USER_PLAYLISTS_ONLY = True # don't change unless you want playlists a user follows to also be included
@@ -49,6 +49,7 @@ class SpotifyAPI:
     def __init__(self, access_token):
         self.header = {'Authorization' : "Bearer "+access_token}
         self.user_id = self.fetch_user_id()
+
 
         self.artist_columns = []
         self.track_columns = []
@@ -109,17 +110,16 @@ class SpotifyAPI:
 
 
     async def get_artists_master_df(self):
-        
+
         if self.artists_dataframes == []:
             return pd.DataFrame()
 
-        #artists_df = self.artists_dataframes[0]
-        #for df in self.artists_dataframes[1:]:
-            #artists_df = artists_df.merge(df, how="outer")
-        #artists_df = artists_df.drop_duplicates()
-        
+        artists_df = None
+        if len(self.artists_dataframes) > 1:
+            artists_df = reduce(lambda left, right: pd.merge(left, right, how="outer"), self.artists_dataframes)
+        else:
+            artists_df = self.artists_dataframes[0]
 
-        artists_df = reduce(lambda left, right: pd.merge(left, right, how="outer"), self.artists_dataframes)
         artists_df = artists_df.drop_duplicates()
 
         if 'id' not in artists_df:
@@ -130,6 +130,9 @@ class SpotifyAPI:
             if col not in artists_df:
                 artists_df[col] = np.NaN
 
+        if 'track.id' not in artists_df:
+            artists_df['track.id'] = np.NaN
+
         # here, i fill in missing values
         # with a second gather operation
         if 'image' in artists_df:
@@ -137,21 +140,23 @@ class SpotifyAPI:
         else:
             artists_missing = artists_df
 
-        artist_missing_list = artists_missing['id'].tolist()
-        artist_missing_list = list(set(artist_missing_list))
+        missing_ids = artists_missing['id'].tolist()
+        missing_ids = list(set(missing_ids))
 
-        artists_full_df = await self.get_full_artist_dataframes(artist_missing_list)
-        artists_df = pd.merge(artists_df, artists_full_df, how="outer")
+        if len(missing_ids) > 0:
+            artists_full_df = await self.get_full_artist_dataframes(missing_ids)
+            artists_df = pd.merge(artists_df, artists_full_df, how="outer")
+        
         artists_df = artists_df.drop_duplicates()
 
         artists_df['smallImage'] = artists_df['image']
         artists_df['bigImage'] = artists_df['image']
         artists_df.drop('image', axis = 1)
 
-
         artists_df_transform = {}
         for column in self.artist_columns:
             artists_df_transform[column] = 'max'
+
 
         artists_df_transform['bigImage'] = 'first'
         artists_df_transform['smallImage'] = 'last'
@@ -167,7 +172,6 @@ class SpotifyAPI:
             return genre_list
         artists_df_transform['genres'] = agg_genres_list
 
-        
         artists_df = artists_df.groupby(['id', 'name']).agg(artists_df_transform)
 
 
@@ -443,8 +447,6 @@ class SpotifyAPI:
         calls extract_full_artist_from_json on the returns and returns a dataframe with all the columns needed
         for the mobile app '''
     async def get_full_artist_dataframes(self, all_IDs):
-        if len(all_IDs) == 0:
-            return pd.DataFrame()
         
         print(f"get_all_details_on({len(all_IDs)})_artists...")
 
