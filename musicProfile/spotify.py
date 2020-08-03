@@ -132,8 +132,8 @@ class SpotifyAPI:
             if col not in artists_df:
                 artists_df[col] = np.NaN
 
-        #if 'track.id' not in artists_df:
-        #    artists_df['track.id'] = np.NaN
+        if 'track.id' not in artists_df:
+            artists_df['track.id'] = np.NaN
 
         # here, i fill in missing values
         # with a second gather operation
