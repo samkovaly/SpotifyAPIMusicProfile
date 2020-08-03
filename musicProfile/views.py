@@ -196,7 +196,7 @@ class UserProfileDetail(APIView):
         print('\n')
 
         if 'error' in new_music_profile:
-            return JsonResponse(new_music_profile)
+            return JsonResponse(new_music_profile, status = new_music_profile['error']['status'])
         else:
             profile.music_profile_JSON = new_music_profile_JSON
             profile.save()

@@ -21,6 +21,7 @@ import sys
 
 import random
 
+import logging
 
 def get_spotify_music_profile(request):
     spotifyAPI = SpotifyAPI(request)
@@ -28,7 +29,8 @@ def get_spotify_music_profile(request):
         music_profile = spotifyAPI.get_music_profile()
         return music_profile
     except Exception as e:
-        print(traceback.format_exc())
+        # traceback.format_exc()
+        logging.exception("music profile refresh exception")
         error_report = {
             'error': {
                 'message': str(e),
@@ -130,8 +132,8 @@ class SpotifyAPI:
             if col not in artists_df:
                 artists_df[col] = np.NaN
 
-        if 'track.id' not in artists_df:
-            artists_df['track.id'] = np.NaN
+        #if 'track.id' not in artists_df:
+        #    artists_df['track.id'] = np.NaN
 
         # here, i fill in missing values
         # with a second gather operation
