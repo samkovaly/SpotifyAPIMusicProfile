@@ -476,6 +476,10 @@ class SpotifyAPI:
                 with open('errorArtists.json', 'w') as outfile:
                     json.dump(resp_dict['artists'], outfile)
 
+            if artist_df.empty:
+                print('returning empty DF for this one')
+                return pd.DataFrame()
+            
             artist_df = artist_df[artist_df['id'].notnull()]
             return artist_df
 
@@ -501,6 +505,10 @@ class SpotifyAPI:
         artists_images = json_normalize(data = json_data_no_none, record_path='images', meta=['id', 'name', 'uri'])
 
         if artists_genres.empty or artists_images.empty:
+            print('artists_genres.empty', artists_genres.empty)
+            print('artists_images.empty', artists_images.empty)
+            
+
             return pd.DataFrame()
 
         artists_df = pd.merge(artists_genres, artists_images, how="outer")
