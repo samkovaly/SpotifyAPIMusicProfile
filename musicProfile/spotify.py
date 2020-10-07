@@ -243,7 +243,7 @@ class SpotifyAPI:
             # then less than 100 short term artists are returned
             # in which case ['items'] equals [] and so we must check for this
             # and just simply do nothing when it happens
-            if resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+            if resp_dict and resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
                 artists_df = self.extract_full_artist_from_json(resp_dict['items'])
                 artists_df["top_artists_"+time_range] = True
 
@@ -280,7 +280,7 @@ class SpotifyAPI:
             URL = "https://api.spotify.com/v1/me/top/tracks?limit=50&offset="+str(offset)+"&time_range="+time_range
             resp_dict = await self.fetch_json_from_URL(URL = URL, name = "artists from top tracks({})".format(time_range))
 
-            if resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+            if resp_dict and resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
                 
                 artists_df = json_normalize(data = resp_dict['items'], record_path=['artists'], meta=['id'], meta_prefix='track.')
                 artists_df = artists_df[['id', 'name', 'track.id']]
@@ -313,13 +313,15 @@ class SpotifyAPI:
 
         while next:
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "followed artists")
-            next = resp_dict['artists']['next']
-            if resp_dict['artists']['total'] > 0:
+
+            if resp_dict and resp_dict['artists'] and resp_dict['artists']['total'] > 0 and len(resp_dict['artists']['items']) > 0:
+                next = resp_dict['artists']['next']
                 artists_df = self.extract_full_artist_from_json(resp_dict['artists']['items'])
                 artists_df['followed_artist'] = True
                 followed_artists.append(artists_df)
-
-
+            else:
+                break
+            
         if len(followed_artists) > 0:
             followed_artists_df = pd.concat(followed_artists)
             followed_artists_df = followed_artists_df[followed_artists_df['id'].notnull()]
@@ -334,10 +336,11 @@ class SpotifyAPI:
         all_tracks = []
         
         while next:
-            
+
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "saved tracks")
-            next = resp_dict['next']
-            if resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+
+            if resp_dict and resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+                next = resp_dict['next']
 
                 artists_df = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'id']])
                 artists_df = artists_df[['id', 'name', 'track.id']]
@@ -347,6 +350,8 @@ class SpotifyAPI:
                 tracks_df = self.cleanup_tracks_df(tracks_df)
                 tracks_df["saved_tracks"] = True
                 all_tracks.append(tracks_df)
+            else:
+                break
 
 
         if len(all_artists) > 0:
@@ -364,10 +369,14 @@ class SpotifyAPI:
         playlists_all = []
         next = "https://api.spotify.com/v1/me/playlists?limit=50&offset=0"
 
+
+
         while next:
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "playlists")
-            next = resp_dict['next']
-            if resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+
+            if resp_dict and resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+                next = resp_dict['next']
+
                 playlists_full = json_normalize(resp_dict['items'])
                 playlists = playlists_full[['id', 'owner.id']]
 
@@ -376,14 +385,16 @@ class SpotifyAPI:
 
                 playlists.drop('owner.id', axis=1, inplace=True)
                 playlists_all.append(playlists)
+            else:
+                break
 
         if len(playlists_all) > 0:
             return pd.concat(playlists_all)
+
         return pd.DataFrame()
 
     async def get_all_playlists(self):
         playlists = await self.fetch_playlists()
-        #self.track_columns.append("playlist")
         self.artist_columns.append("playlist")
 
         if playlists.empty:
@@ -414,10 +425,10 @@ class SpotifyAPI:
 
         while next:
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "tracks from playlist")
-            save_it = next
-            next = resp_dict['next']
 
-            if resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+            if resp_dict and resp_dict['total'] > 0 and len(resp_dict['items']) > 0:
+
+                next = resp_dict['next']
                 
                 artists_df = json_normalize(data = resp_dict['items'], record_path=['track', 'artists'], meta=[['track', 'id']])
                 artists_df = artists_df[['id', 'name', 'track.id']]
@@ -429,6 +440,8 @@ class SpotifyAPI:
                 tracks_df = self.cleanup_tracks_df(tracks_df)
                 tracks_df["playlist"] = True
                 all_tracks.append(tracks_df)
+            else:
+                break
 
         all_artists_df = pd.DataFrame()
         all_tracks_df = pd.DataFrame()
@@ -467,11 +480,10 @@ class SpotifyAPI:
             params = [('ids', ",".join(IDs))],
             name = "full artist objects")
         
-        if resp_dict['artists']:
+        if resp_dict and resp_dict['artists']:
             try:
                 artist_df = self.extract_full_artist_from_json(resp_dict['artists'])
             except Exception as e:
-                print(f"artist IDs starting with {IDs[0]} has returned with resp_dict of:{resp_dict['artists'][0]}")
                 print('exception in fetch_full_artists, resp_dict is messed up:', e)
                 with open('errorArtists.json', 'w') as outfile:
                     json.dump(resp_dict['artists'], outfile)
@@ -563,7 +575,6 @@ class SpotifyAPI:
 
     ''' basic fetch json from URL function implemented with aiohttp async. (need asyncio gath to call). '''
     async def fetch_json_from_URL(self, URL, params = None, name = "", depth = 0):
-
         r = None
         try:
             async with aiohttp.ClientSession(raise_for_status=False) as session:
@@ -604,4 +615,5 @@ class SpotifyAPI:
                 return resp_dict
 
         except Exception as e:
-            print("ERROR:\n" + self.REQUEST_EXCEPTION_MSG + name + '\n' + URL + ": " + str(e) + '\n') 
+            print("ERROR:\n" + self.REQUEST_EXCEPTION_MSG + name + '\n' + URL + ": " + str(e) + '\n')
+            return None
