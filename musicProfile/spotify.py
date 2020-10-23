@@ -30,6 +30,7 @@ def get_spotify_music_profile(request):
         return music_profile
     except Exception as e:
         # traceback.format_exc()
+        print('GLOBAL EXCEPTION - BAD. RETURNING ERROR TO FRONT END')
         logging.exception("music profile refresh exception")
         error_report = {
             'error': {
@@ -615,5 +616,9 @@ class SpotifyAPI:
                 return resp_dict
 
         except Exception as e:
-            print("ERROR:\n" + self.REQUEST_EXCEPTION_MSG + name + '\n' + URL + ": " + str(e) + '\n')
+            print('fetch_json_from_URL error')
+            print('name: ', name)
+            print('URL: ', URL)
+            print('error msg: ', e)
+            print('=====')
             return None
