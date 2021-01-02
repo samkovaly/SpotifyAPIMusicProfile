@@ -1,7 +1,7 @@
-''''''
-
 # Spotify Music Profile API
 Open source back end code for the react native mobile app My Artists. The app automatically analyzes user's Spotify accounts, finds their favorite artists, and shows concerts featuring these artists in a city near the user. This code functions as the app's backend API. It holds user's accounts and their *Spotify music profile*. This profile is just a Python Pandas dataframe of all the user's artists. The columns are a mix of information about the artist and data on how the artist relates to this specific user. For example: ```id```, ```name```, ```top_artists_long_term```, ```top_artists_short_term``` and ```playlist```). This dataframe is converted to JSON and returned to the front end app. The API also lets users save retrieve and delete their favorite concerts that they have found.
+<br/>
+[Apple App Store](https://apps.apple.com/us/app/my-artists-only/id1525832462)
 <br/>
 [Google Play Store](https://play.google.com/store/apps/details?id=xilernet.myartists)
 <br/>
