@@ -254,19 +254,20 @@ class SpotifyAPI:
         if len(top_artists) > 0:
             artists_df = pd.concat(top_artists)
 
-            current_ranking = 0
-            rankings = []
-            seen_id = set()
-            for index, row in artists_df.iterrows():
-                if row['id'] not in seen_id:
-                    current_ranking += 1
-                    seen_id.add(row['id'])
-                rankings.append(current_ranking)
+            if 'id' in artists_df:
+                current_ranking = 0
+                rankings = []
+                seen_id = set()
+                for index, row in artists_df.iterrows():
+                    if row['id'] not in seen_id:
+                        current_ranking += 1
+                        seen_id.add(row['id'])
+                    rankings.append(current_ranking)
 
-            artists_df["top_artists_" + time_range + "_ranking"] = rankings
-            artists_df = artists_df[artists_df['id'].notnull()]
+                artists_df["top_artists_" + time_range + "_ranking"] = rankings
+                artists_df = artists_df[artists_df['id'].notnull()]
 
-            self.artists_dataframes.append(artists_df)
+                self.artists_dataframes.append(artists_df)
         
 
     async def fetch_top_tracks(self, time_range):
@@ -295,13 +296,15 @@ class SpotifyAPI:
         
         if len(all_artists) > 0:
             all_artists_df = pd.concat(all_artists)
-            all_artists_df = all_artists_df[all_artists_df['id'].notnull()]
-            self.artists_dataframes.append(all_artists_df)
+            if 'id' in all_artists_df:
+                all_artists_df = all_artists_df[all_artists_df['id'].notnull()]
+                self.artists_dataframes.append(all_artists_df)
 
         if len(all_tracks) > 0:
             all_tracks_df = pd.concat(all_tracks)
-            all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
-            self.tracks_dataframes.append(all_tracks_df)
+            if 'id' in all_tracks_df:
+                all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
+                self.tracks_dataframes.append(all_tracks_df)
 
 
 
@@ -325,8 +328,10 @@ class SpotifyAPI:
             
         if len(followed_artists) > 0:
             followed_artists_df = pd.concat(followed_artists)
-            followed_artists_df = followed_artists_df[followed_artists_df['id'].notnull()]
-            self.artists_dataframes.append(followed_artists_df)
+            if 'id' in followed_artists_df:
+                followed_artists_df = followed_artists_df[followed_artists_df['id'].notnull()]
+                self.artists_dataframes.append(followed_artists_df)
+
 
     async def fetch_saved_tracks(self):
         print('fetching saved tracks... ')
@@ -357,13 +362,15 @@ class SpotifyAPI:
 
         if len(all_artists) > 0:
             all_artists_df = pd.concat(all_artists)
-            all_artists_df = all_artists_df[all_artists_df['id'].notnull()]
-            self.artists_dataframes.append(all_artists_df)
+            if 'id' in all_artists_df:
+                all_artists_df = all_artists_df[all_artists_df['id'].notnull()]
+                self.artists_dataframes.append(all_artists_df)
 
         if len(all_tracks) > 0:
             all_tracks_df = pd.concat(all_tracks)
-            all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
-            self.tracks_dataframes.append(all_tracks_df)
+            if 'id' in all_tracks_df:
+                all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
+                self.tracks_dataframes.append(all_tracks_df)
 
     async def fetch_playlists(self):
         print('fetch_playlists...')
@@ -398,7 +405,7 @@ class SpotifyAPI:
         playlists = await self.fetch_playlists()
         self.artist_columns.append("playlist")
 
-        if playlists.empty:
+        if playlists.empty or 'id' not in playlists:
             return
 
         tracks = []
@@ -449,11 +456,13 @@ class SpotifyAPI:
 
         if len(all_artists) > 0:
             all_artists_df = pd.concat(all_artists)
-            all_artists_df = all_artists_df[all_artists_df['id'].notnull()]
+            if 'id' in all_artists_df:
+                all_artists_df = all_artists_df[all_artists_df['id'].notnull()]
 
         if len(all_tracks) > 0:
             all_tracks_df = pd.concat(all_tracks)
-            all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
+            if 'id' in all_tracks_df:
+                all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
         
         return all_artists_df, all_tracks_df
 
@@ -485,16 +494,15 @@ class SpotifyAPI:
             try:
                 artist_df = self.extract_full_artist_from_json(resp_dict['artists'])
             except Exception as e:
-                print('exception in fetch_full_artists, resp_dict is messed up:', e)
                 with open('errorArtists.json', 'w') as outfile:
                     json.dump(resp_dict['artists'], outfile)
 
             if artist_df.empty:
-                print('returning empty DF for this one')
                 return pd.DataFrame()
-            
-            artist_df = artist_df[artist_df['id'].notnull()]
-            return artist_df
+
+            if 'id' in artist_df:
+                artist_df = artist_df[artist_df['id'].notnull()]
+                return artist_df
 
         return pd.DataFrame()
 
@@ -520,8 +528,6 @@ class SpotifyAPI:
         if artists_genres.empty or artists_images.empty:
             print('artists_genres.empty', artists_genres.empty)
             print('artists_images.empty', artists_images.empty)
-            
-
             return pd.DataFrame()
 
         artists_df = pd.merge(artists_genres, artists_images, how="outer")
@@ -535,7 +541,6 @@ class SpotifyAPI:
         # an array of strigs, not objects
         artists_df = artists_df.rename(columns={0: 'genres', 'url': 'image'})
         return artists_df
-
 
     '''
     track: {
@@ -558,9 +563,6 @@ class SpotifyAPI:
 
     ''' fetch user id is implemented with requests library instead of asyncio '''
     def fetch_user_id(self):
-        #resp_dict = await self.fetch_json_from_URL(URL = "https://api.spotify.com/v1/me", name = "user id")
-        #return resp_dict['id']
-
         URL = "https://api.spotify.com/v1/me"
         try:
             r = requests.get(URL, headers = self.header)
@@ -577,8 +579,8 @@ class SpotifyAPI:
     ''' basic fetch json from URL function implemented with aiohttp async. (need asyncio gath to call). '''
     async def fetch_json_from_URL(self, URL, params = None, name = "", depth = 0):
         r = None
-        try:
-            async with aiohttp.ClientSession(raise_for_status=False) as session:
+        async with aiohttp.ClientSession(raise_for_status=False) as session:
+            try:
                 r = await session.get(URL, params = params, headers = self.header)
             
                 # can try again after waiting for a bit, not really an error
@@ -615,10 +617,10 @@ class SpotifyAPI:
                 resp_dict = json.loads(await r.text())
                 return resp_dict
 
-        except Exception as e:
-            print('fetch_json_from_URL error')
-            print('name: ', name)
-            print('URL: ', URL)
-            print('error msg: ', e)
-            print('=====')
-            return None
+            except aiohttp.ClientConnectorError as e:
+                print('fetch_json_from_URL error')
+                print('name: ', name)
+                print('URL: ', URL)
+                print('error msg: ', str(e))
+                print('=========')
+                return None
