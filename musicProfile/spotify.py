@@ -372,13 +372,11 @@ class SpotifyAPI:
                 all_tracks_df = all_tracks_df[all_tracks_df['id'].notnull()]
                 self.tracks_dataframes.append(all_tracks_df)
 
+
     async def fetch_playlists(self):
         print('fetch_playlists...')
         playlists_all = []
         next = "https://api.spotify.com/v1/me/playlists?limit=50&offset=0"
-
-
-
         while next:
             resp_dict = await self.fetch_json_from_URL(URL = next, name = "playlists")
 
@@ -398,8 +396,8 @@ class SpotifyAPI:
 
         if len(playlists_all) > 0:
             return pd.concat(playlists_all)
-
         return pd.DataFrame()
+
 
     async def get_all_playlists(self):
         playlists = await self.fetch_playlists()
@@ -422,8 +420,11 @@ class SpotifyAPI:
             if not playlistData[1].empty:
                 tracks.append(playlistData[1])
 
-        self.artists_dataframes.append(pd.concat(artists))
-        self.tracks_dataframes.append(pd.concat(tracks))
+        if artists and len(artists) > 0:
+            self.artists_dataframes.append(pd.concat(artists))
+
+        if tracks and len(tracks) > 0:
+            self.tracks_dataframes.append(pd.concat(tracks))
 
 
     async def fetch_playlist(self, ID):
